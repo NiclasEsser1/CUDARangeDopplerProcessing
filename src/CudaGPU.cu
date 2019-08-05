@@ -46,7 +46,7 @@ int CudaGPU::checkMemory(size_t size)
 {
     std::size_t free, total;
     cuMemGetInfo(&free, &total);
-    printf("GPU memory (free): %.4f MBytes\nGPU memory (total): %.4f MBytes\n", (float)free/(1024*1024), (float)total/(1024*1024));
+    printf("GPU memory (free): %.4f MBytes\n", (float)free/(1024*1024));
     setFreeMemory(free);
     setTotalMemory(total);
     if(free_mem < size)

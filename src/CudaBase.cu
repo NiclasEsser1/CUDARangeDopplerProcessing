@@ -193,7 +193,7 @@ void CudaBase::r2cManyFFT(float* idata, cufftComplex *odata, int *nfft, int  ran
 
 void CudaBase::hilbertTransform(float* idata, cufftComplex* odata, int n, int batch)
 {
-	printf("Performing hilbert transform... ");
+	printf("Performing hilbert transform... \n");
 	r2c1dFFT(idata, odata, n, batch);
 	c2c1dIFFT(odata, n/2+1, batch);
 	printf("done\n");
