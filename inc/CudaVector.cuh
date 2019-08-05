@@ -1,11 +1,11 @@
 #ifndef CUDAVECTOR_CUH_
 #define CUDAVECTOR_CUH_
 
+#include "CudaGPU.cuh"
 #include <iostream>
 #include <cuda_runtime.h>
 #include <stdio.h>
 
-// #include <CudaGPU.cuh>
 
 template <typename T>
 class CudaVector
@@ -30,18 +30,28 @@ public:
     }
 
     __host__
-    CudaVector(std::size_t size = 1)
+    CudaVector(CudaGPU* gpu, std::size_t size = 1)
     {
         m_bSize = size;
         eleSize = sizeof(T);
-        CUDA_CHECK(cudaMalloc(&m_bValues, m_bSize*sizeof(T)));
-        CUDA_CHECK(cudaMemset(m_bValues, 0, m_bSize*sizeof(T)));
+        if(gpu->checkMemory(size))
+        {
+            printf("Allocating memory: %.4f MBytes\n", (float)size/(1024*1024));
+            CUDA_CHECK(cudaMalloc(&m_bValues, m_bSize * sizeof(T)));
+            CUDA_CHECK(cudaMemset(m_bValues, 0, m_bSize));
+        }
+        else
+        {
+            printf("GPU memory is out of range, could not allocate memory..\n");
+            exit(1);
+        }
     }
 
     __host__
     ~CudaVector()
     {
-        CUDA_CHECK(cudaFree(m_bValues));
+    	if(m_bValues != NULL)
+    		CUDA_CHECK(cudaFree(m_bValues));
     }
 
     __host__

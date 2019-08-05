@@ -11,12 +11,9 @@ __global__ void windowHamming(float* idata, int length);
 __global__ void windowHann(float* idata, int length);
 __global__ void windowBartlett(float* idata, int length);
 __global__ void windowBlackman(float* idata, int length);
-__global__ void windowMultiplyReal(float* idata, float* window, int length, int height = 1, int depth = 1);
-__global__ void windowMultiplyCplx(cufftComplex* idata, float* window, int length, int height = 1, int depth = 1);
-__global__ void zeroPaddingCplx(cufftComplex* idata, int pad_length, int length, int height = 1, int depth = 1);
-__global__ void transposeBufferGlobalReal(float* idata, float* odata);
-__global__ void transposeBufferGlobalCplx(cufftComplex* idata, cufftComplex* odata);
-__global__ void transposeBufferSharedReal(float* idata, float* odata);
-__global__ void transposeBufferSharedCplx(cufftComplex* idata, cufftComplex* odata);
-
+__global__ void windowMultiplyReal(float* idata, float* window, int width, int height);
+__global__ void windowMultiplyCplx(cufftComplex* idata, float* window, int width, int height);
+__global__ void transposeBufferGlobalReal(float* idata, float* odata, int width, int height);
+__global__ void transposeBufferGlobalCplx(cufftComplex* idata, cufftComplex* odata, int width, int height);
+__global__ void absoluteKernel(cufftComplex* idata, float* odata, int width, int height);
 #endif

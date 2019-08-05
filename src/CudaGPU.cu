@@ -9,6 +9,7 @@ CudaGPU::CudaGPU(int devNum)
     printf("Starting CUDA device query...\n");
     int deviceCount = 0;
     CUDA_CHECK(cudaGetDeviceCount(&deviceCount));
+    checkMemory();
     setDeviceID(devNum);
     CUDA_CHECK(cudaSetDevice(id));
     CUDA_CHECK(cudaGetDeviceProperties(&prop, id));
@@ -24,7 +25,7 @@ CudaGPU::CudaGPU(int devNum)
 
 CudaGPU::~CudaGPU()
 {
-
+    cudaDeviceReset();
 }
 
 void CudaGPU::setDeviceID(int val)
@@ -40,4 +41,15 @@ int CudaGPU::getDeviceID()
 cudaDeviceProp CudaGPU::getProperties()
 {
     return prop;
+}
+int CudaGPU::checkMemory(size_t size)
+{
+    std::size_t free, total;
+    cuMemGetInfo(&free, &total);
+    printf("GPU memory (free): %.4f MBytes\nGPU memory (total): %.4f MBytes\n", (float)free/(1024*1024), (float)total/(1024*1024));
+    setFreeMemory(free);
+    setTotalMemory(total);
+    if(free_mem < size)
+        return 0;
+    return 1;
 }

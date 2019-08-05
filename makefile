@@ -7,15 +7,15 @@ BDIR=bin/
 
 CPP=g++
 NVCC=nvcc
-LIBS=-lstdc++ -lcudart -lcufft -lrt -lm
+LIBS=-lstdc++ -lcuda -lcudart -lcufft -lrt -lm
 
-_CSRC =main.cpp SignalGenerator.cpp Stopwatch.cpp CudaGPU.cu CudaBase.cu CudaKernels.cu
+_CSRC =main.cpp CudaGPU.cu CudaBase.cu CudaKernels.cu
 CSRC=$(patsubst %,$(SRC)%,$(_CSRC))
 
-_CDEPS=main.h SignalGenerator.h Stopwatch.h CudaGPU.cuh CudaBase.cuh CudaKernels.cuh CudaVector.cuh
+_CDEPS=CudaGPU.cuh CudaBase.cuh CudaKernels.cuh CudaVector.cuh
 CDEPS=$(patsubst %,$(IDIR1)%,$(_CDEPS))
 
-_OBJ=main.o SignalGenerator.o Stopwatch.o CudaGPU.o CudaBase.o CudaKernels.o CudaVector.o
+_OBJ=main.o CudaGPU.o CudaBase.o CudaKernels.o
 OBJ=$(patsubst %,$(ODIR)%,$(_OBJ))
 
 $(ODIR)%.o: $(SDIR)%.cpp $(CDEPS)
@@ -24,7 +24,7 @@ $(ODIR)%.o: $(SDIR)%.cpp $(CDEPS)
 $(ODIR)%.o: $(SDIR)%.cu $(CDEPS)
 	$(NVCC) -I$(IDIR1) -I$(IDIR2) -c $< -o $@
 
-$(BDIR)run: $(OBJ) $(CRSC)
+$(BDIR)run: $(OBJ)
 	$(NVCC) $(OBJ) -o $@ $(LIBS)
 clean:
 	rm -f $(ODIR)*.o $(BDIR)run

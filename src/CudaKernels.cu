@@ -37,102 +37,58 @@ __global__ void windowBlackman(float* idata, int length)
 	}
 }
 
-__global__ void windowMultiplyReal(float* idata, float* window, int length, int height, int depth)
+__global__ void windowMultiplyReal(float* idata, float* window, int width, int height)
 {
 	int tidx = threadIdx.x + blockIdx.x*blockDim.x;
 	int tidy = threadIdx.y + blockIdx.y*blockDim.y;
-	int tidz = threadIdx.z + blockIdx.z*blockDim.z;
-	if(tidx < length && tidy < height && tidz < depth)
+	if(tidx < width && tidy < height)
 	{
-		idata[tidx*tidy] = window[tidx] * idata[tidx*tidy];
+		idata[tidy * width + tidx] = window[tidx] * idata[tidy * width + tidx];
 	}
 }
 
 
-__global__ void windowMultiplyCplx(cufftComplex* idata, float* window, int length, int height, int depth)
+__global__ void windowMultiplyCplx(cufftComplex* idata, float* window, int width, int height)
 {
 	int tidx = threadIdx.x + blockIdx.x*blockDim.x;
 	int tidy = threadIdx.y + blockIdx.y*blockDim.y;
-	int tidz = threadIdx.z + blockIdx.z*blockDim.z;
-	if(tidx < length && tidy < height && tidz < depth)
+	if(tidx < width && tidy < height)
 	{
-		idata[tidx*tidy].x = window[tidx] * idata[tidx*tidy].x;
-		idata[tidx*tidy].y = window[tidx] * idata[tidx*tidy].y;
+		idata[tidy * width + tidx].x = window[tidx] * idata[tidy * width + tidx].x;
+		idata[tidy * width + tidx].y = window[tidx] * idata[tidy * width + tidx].y;
 	}
 }
 
-__global__ void transposeBufferGlobalReal(float* idata, float* odata)
+__global__ void transposeBufferGlobalReal(float* idata, float* odata, int width, int height)
 {
-	int x = blockIdx.x * TRANSPOSE_DIM + threadIdx.x;
-	int y = blockIdx.y * TRANSPOSE_DIM+ threadIdx.y;
-	int width = gridDim.x * TRANSPOSE_DIM;
-	// if(x < length && y < height)
-	// {
-		for (int j = 0; j < TRANSPOSE_DIM; j+= TRANSPOSE_ROWS)
-		{
-			odata[x*width + (y+j)] = idata[(y+j)*width + x];
-		}
-	// }
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int tidy = blockIdx.y * blockDim.y+ threadIdx.y;
+
+	if(tidx < width && tidy < height)
+	{
+		odata[tidx*height + tidy] = idata[tidy*width + tidx];
+	}
 }
 
-__global__ void transposeBufferGlobalCplx(cufftComplex* idata, cufftComplex* odata)
+__global__ void transposeBufferGlobalCplx(cufftComplex* idata, cufftComplex* odata, int width, int height)
 {
-	int x = blockIdx.x * TRANSPOSE_DIM + threadIdx.x;
-	int y = blockIdx.y * TRANSPOSE_DIM+ threadIdx.y;
-	int width = gridDim.x * TRANSPOSE_DIM;
-	// if(x < length && y < height)
-	// {
-		for (int j = 0; j < TRANSPOSE_DIM; j+= TRANSPOSE_ROWS)
-		{
-			odata[x*width + (y+j)] = idata[(y+j)*width + x];
-		}
-	// }
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if(tidx < width && tidy < height)
+	{
+		odata[tidx*height + tidy].x = idata[tidy*width + tidx].x;
+		odata[tidx*height + tidy].y = idata[tidy*width + tidx].y;
+	}
 }
 
-__global__ void transposeBufferSharedReal(float* idata, float* odata)
+__global__ void absoluteKernel(cufftComplex* idata, float* odata, int width, int height)
 {
-	__shared__ float tile[TRANSPOSE_DIM][TRANSPOSE_DIM];
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
 
-	int x = blockIdx.x * TRANSPOSE_DIM + threadIdx.x;
-	int y = blockIdx.y * TRANSPOSE_DIM + threadIdx.y;
-	int width = gridDim.x * TRANSPOSE_DIM;
-
-	for (int j = 0; j < TRANSPOSE_DIM; j+= TRANSPOSE_ROWS)
+	if(tidx < width && tidy < height)
 	{
-		tile[threadIdx.y+j][threadIdx.x] = (idata[(y+j)*width + x]);
+		odata[tidy*width + tidx] = sqrt(idata[tidy*width + tidx].x * idata[tidy*width + tidx].x + idata[tidy*width + tidx].y*idata[tidy*width + tidx].y);
 	}
-
-	__syncthreads();
-
-	x = blockIdx.y * TRANSPOSE_DIM + threadIdx.x;  // transpose block offset
-	y = blockIdx.x * TRANSPOSE_DIM + threadIdx.y;
-	for (int j = 0; j < TRANSPOSE_DIM; j+= TRANSPOSE_ROWS)
-	{
-		odata[(y+j)*width + x] = tile[threadIdx.x][threadIdx.y + j];
-	}
-
-}
-
-__global__ void transposeBufferSharedCplx(cufftComplex* idata, cufftComplex* odata)
-{
-	__shared__ cufftComplex tile[TRANSPOSE_DIM][TRANSPOSE_DIM];
-
-	int x = blockIdx.x * TRANSPOSE_DIM + threadIdx.x;
-	int y = blockIdx.y * TRANSPOSE_DIM + threadIdx.y;
-	int width = gridDim.x * TRANSPOSE_DIM;
-
-	for (int j = 0; j < TRANSPOSE_DIM; j+= TRANSPOSE_ROWS)
-	{
-		tile[threadIdx.y+j][threadIdx.x] = (idata[(y+j)*width + x]);
-	}
-
-	__syncthreads();
-
-	x = blockIdx.y * TRANSPOSE_DIM + threadIdx.x;  // transpose block offset
-	y = blockIdx.x * TRANSPOSE_DIM + threadIdx.y;
-	for (int j = 0; j < TRANSPOSE_DIM; j+= TRANSPOSE_ROWS)
-	{
-		odata[(y+j)*width + x] = tile[threadIdx.x][threadIdx.y + j];
-	}
-
 }

@@ -37,9 +37,14 @@ public:
     void setDeviceID(int val);
     int getDeviceID();
     cudaDeviceProp getProperties();
+	int checkMemory(std::size_t size = 0);
+	void setFreeMemory(size_t val){free_mem = val;}
+	void setTotalMemory(size_t val){total_mem = val;}
 private:
     int id;
     cudaDeviceProp prop;
+    std::size_t free_mem;
+    std::size_t total_mem;
 };
 
 #endif
