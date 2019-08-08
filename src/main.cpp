@@ -101,7 +101,8 @@ int main(int argc, char** argv)
 				else
 					fprintf(fid, "  %.4f,", avg_time[j]);
 			}
-			cub.freeMemory();
+			if(k != NOF_IMAGES-1)
+				cub.freeMemory();
 			sleep(1);
 		}
 		//printf("________________\n\n\n");

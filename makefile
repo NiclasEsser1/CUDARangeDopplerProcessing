@@ -1,5 +1,6 @@
 IDIR1=inc/
 IDIR2=/usr/include/
+IDIR3=/usr/local/cuda/lib64/
 LDIR=/usr/lib/
 SDIR=src/
 ODIR=obj/
@@ -22,7 +23,7 @@ $(ODIR)%.o: $(SDIR)%.cpp $(CDEPS)
 	$(NVCC) -I$(IDIR1) -I$(IDIR2) -c $< -o $@
 
 $(ODIR)%.o: $(SDIR)%.cu $(CDEPS)
-	$(NVCC) -I$(IDIR1) -I$(IDIR2) -c $< -o $@
+	$(NVCC) -I$(IDIR1) -I$(IDIR2) -I$(IDIR3) -c $< -o $@
 
 $(BDIR)run: $(OBJ)
 	$(NVCC) $(OBJ) -o $@ $(LIBS)

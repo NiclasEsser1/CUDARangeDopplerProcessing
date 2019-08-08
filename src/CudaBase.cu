@@ -37,8 +37,8 @@ bool CudaBase::initDeviceEnv()
 {
 	//Allocate device memory for processing chain
 	printf("Allocate memory for processing buffer\n");
-	total_used_mem = x_size * y_size * 3  + x_size;
-	printf("needed mem: %ld and total avaible mem: %ld\n", total_used_mem/(1024*1024),device->totalMemory()/(1024*1024));
+	total_used_mem = x_size * y_size * 3 * sizeof(cufftComplex) + x_size * sizeof(cufftComplex);
+	printf("needed mem: %ld MBytes; total avaible mem: %ld MBytes\n", total_used_mem/(1024*1024),device->totalMemory()/(1024*1024));
 	if(total_used_mem < device->totalMemory())
 	{
 		floatBuffer = new CudaVector<float>(device, x_size * y_size);
@@ -49,9 +49,10 @@ bool CudaBase::initDeviceEnv()
 	}
 	else
 	{
-		printf("Not enoguh memory avaible on the used device, aborting... \n");
+		printf("Not enough memory avaible on the used device, aborting... \n");
 		return 0;
 	}
+
 }
 
 void CudaBase::setWindow(winType type, numKind kind)
