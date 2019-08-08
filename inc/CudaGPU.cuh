@@ -40,6 +40,7 @@ public:
 	int checkMemory(std::size_t size = 0);
 	void setFreeMemory(size_t val){free_mem = val;}
 	void setTotalMemory(size_t val){total_mem = val;}
+	std::size_t totalMemory(){return total_mem;}
 private:
     int id;
     cudaDeviceProp prop;

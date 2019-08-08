@@ -36,7 +36,7 @@ public:
         eleSize = sizeof(T);
         if(gpu->checkMemory(size))
         {
-            printf("Allocating memory: %.4f MBytes\n", (float)size/(1024*1024));
+            printf("Allocating memory: %.4f MBytes\n", (float)size * sizeof(T)/(1024*1024));
             CUDA_CHECK(cudaMalloc(&m_bValues, m_bSize * sizeof(T)));
             CUDA_CHECK(cudaMemset(m_bValues, 0, m_bSize));
         }
