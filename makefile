@@ -1,6 +1,6 @@
 IDIR1=inc/
 IDIR2=/usr/include/
-IDIR3=/usr/local/cuda-10.1/include/
+IDIR3=/usr/local/cuda/include/
 LDIR=/usr/lib/
 SDIR=src/
 ODIR=obj/
@@ -23,9 +23,9 @@ $(ODIR)%.o: $(SDIR)%.cpp $(CDEPS)
 	$(NVCC) -I$(IDIR1) -I$(IDIR2) -I$(IDIR3) -c $< -o $@
 
 $(ODIR)%.o: $(SDIR)%.cu $(CDEPS)
-	$(NVCC) -I$(IDIR1) -I$(IDIR2) -I$(IDIR3) -G -g -O0 --compile --relocatable-device-code=false -gencode arch=compute_61,code=compute_61 -gencode arch=compute_61,code=sm_61  -x cu -o $< -o $@
+	$(NVCC) -I$(IDIR1) -I$(IDIR2) -I$(IDIR3) -c $< -o $@
 
-# $(BDIR)run: $(OBJ)
-# 	$(NVCC) --cudart static -L/usr/lib -L/usr/local/cuda-10.1/lib64 --relocatable-device-code=false -gencode arch=compute_61,code=compute_61 -gencode arch=compute_61,code=sm_61 -link -o $(OBJ) $@ $(LIBS)
+$(BDIR)run: $(OBJ)
+	$(NVCC) $(OBJ) -o $@ $(LIBS)
 clean:
 	rm -f $(ODIR)*.o $(BDIR)run
