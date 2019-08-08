@@ -3,7 +3,6 @@
 #include "CudaVector.cuh"
 
 #include <stdio.h>
-#include <cuda_runtime_api.h>
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
@@ -55,7 +54,7 @@ int main(int argc, char** argv)
 			start = clock();
 			cub.windowReal(cub.getFloatBuffer(),width[k], height[k]);
 			end = clock();
-			timing[1] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
+			timing[1] += ((float)(end-start)) * 1000 / (float)CLOCKS_PER_SEC;
 
 			start = clock();
 			cub.windowCplx(cub.getComplexBuffer(),width[k], height[k]);
