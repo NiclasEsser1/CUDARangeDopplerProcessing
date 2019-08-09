@@ -10,13 +10,13 @@
 
 #define ITERATIONS ( 100 )
 #define NOF_PROCESSING_STEPS 9
-#define NOF_IMAGES 6
+#define NOF_IMAGES 7
 
 
 int main(int argc, char** argv)
 {
-	int height[NOF_IMAGES] = {512, 1024, 2048, 4096, 4096, 8192};
-	int width[NOF_IMAGES] = {256, 512, 1024, 2048, 4096, 4096};
+	int height[NOF_IMAGES] = {512, 1024, 2048, 4096, 4096, 8192, 16384};
+	int width[NOF_IMAGES] = {256, 512, 1024, 2048, 4096, 4096, 8192};
 
 	float timing[NOF_PROCESSING_STEPS];
 	float avg_time[NOF_PROCESSING_STEPS];
@@ -37,12 +37,74 @@ int main(int argc, char** argv)
 		fprintf(fid, "%dx%d,",height[k], width[k]);
 		cub.setLength(width[k]);
 		cub.setHeight(height[k]);
-		cub.initDeviceEnv();
-		for(int j = 0; j < NOF_PROCESSING_STEPS; j++)
+		if(cub.initDeviceEnv())
 		{
-			avg_time[j] = 0;
-			timing[j] = 0;
+			for(int j = 0; j < NOF_PROCESSING_STEPS; j++)
+			{
+				avg_time[j] = 0;
+				timing[j] = 0;
+			}
+			for(int i = 0; i < ITERATIONS; i++)
+			{
+				//printf("\n\n________________\nRun (%d/%d) \n",i+1,ITERATIONS);
+				start = clock();
+				cub.setWindow(HAMMING, REAL);
+				end = clock();
+				timing[0] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
+
+				start = clock();
+				cub.windowReal(cub.getFloatBuffer(),width[k], height[k]);
+				end = clock();
+				timing[1] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
+
+				start = clock();
+				cub.windowCplx(cub.getComplexBuffer(),width[k], height[k]);
+				end = clock();
+				timing[2] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
+
+				start = clock();
+				cub.transpose(cub.getComplexBuffer(), cub.getTransposeBuffer(), width[k], height[k]);
+				end = clock();
+				timing[3] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
+
+				start = clock();
+				cub.hilbertTransform(cub.getFloatBuffer(), cub.getComplexBuffer(), width[k], height[k]);
+				end = clock();
+				timing[4] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
+
+				start = clock();
+				cub.c2c1dFFT(cub.getComplexBuffer(), width[k], height[k]);
+				end = clock();
+				timing[5] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
+
+				start = clock();
+				cub.r2c1dFFT(cub.getFloatBuffer(), cub.getComplexBuffer(), width[k], height[k]);
+				end = clock();
+				timing[6] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
+
+				start = clock();
+				cub.c2c1dIFFT(cub.getComplexBuffer(), width[k], height[k]);
+				end = clock();
+				timing[7] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
+
+				start = clock();
+				cub.absolute(cub.getComplexBuffer(), cub.getFloatBuffer(), width[k], height[k]);
+				end = clock();
+				timing[8] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
+			}
+			for(int j = 0; j < NOF_PROCESSING_STEPS; j++)
+			{
+				avg_time[j] = timing[j] / ITERATIONS;
+				if(j == NOF_PROCESSING_STEPS -1)
+					fprintf(fid, "  %.4f \n", avg_time[j]);
+				else
+					fprintf(fid, "  %.4f,", avg_time[j]);
+			}
+			if(k != NOF_IMAGES-1)
+				cub.freeMemory();
+			sleep(1);
 		}
+<<<<<<< HEAD
 		for(int i = 0; i < ITERATIONS; i++)
 		{
 			printf("\n\n________________\nRun (%d/%d) \n",i+1,ITERATIONS);
@@ -102,6 +164,9 @@ int main(int argc, char** argv)
 		cub.freeMemory();
 		sleep(1);
 		printf("________________\n\n\n");
+=======
+		//printf("________________\n\n\n");
+>>>>>>> 580bb87f8292a8f708931d42beda2b7583ff3727
 	}
 	fclose(fid);
 }

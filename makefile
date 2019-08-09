@@ -1,6 +1,10 @@
 IDIR1=inc/
 IDIR2=/usr/include/
+<<<<<<< HEAD
 IDIR3=/usr/local/cuda/include/
+=======
+IDIR3=/usr/local/cuda/lib64/
+>>>>>>> 580bb87f8292a8f708931d42beda2b7583ff3727
 LDIR=/usr/lib/
 SDIR=src/
 ODIR=obj/
