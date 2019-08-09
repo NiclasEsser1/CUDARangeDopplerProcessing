@@ -39,7 +39,7 @@ bool CudaBase::initDeviceEnv()
 	printf("Allocate memory for processing buffer\n");
 	total_used_mem = x_size * y_size * 3 * sizeof(cufftComplex) + x_size * sizeof(cufftComplex);
 	printf("needed mem: %ld MBytes; total avaible mem: %ld MBytes\n", total_used_mem/(1024*1024),device->totalMemory()/(1024*1024));
-	if(total_used_mem < device->totalMemory())
+	if(device->checkMemory(total_used_mem))
 	{
 		floatBuffer = new CudaVector<float>(device, x_size * y_size);
 		complexBuffer = new CudaVector<cufftComplex>(device, x_size * y_size);
