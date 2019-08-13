@@ -42,11 +42,12 @@ cudaDeviceProp CudaGPU::getProperties()
 {
     return prop;
 }
-int CudaGPU::checkMemory(size_t size)
+int CudaGPU::checkMemory(size_t size, bool print)
 {
     std::size_t free, total;
     cuMemGetInfo(&free, &total);
-    printf("GPU memory (free): %.4f MBytes\n", (float)free/(1024*1024));
+    if(size != 0 && print)
+        printf("GPU memory (free): %.4f MBytes\n", (float)free/(1024*1024));
     setFreeMemory(free);
     setTotalMemory(total);
     if(free_mem < size)

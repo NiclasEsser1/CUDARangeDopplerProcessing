@@ -16,4 +16,39 @@ __global__ void windowMultiplyCplx(cufftComplex* idata, float* window, int width
 __global__ void transposeBufferGlobalReal(float* idata, float* odata, int width, int height);
 __global__ void transposeBufferGlobalCplx(cufftComplex* idata, cufftComplex* odata, int width, int height);
 __global__ void absoluteKernel(cufftComplex* idata, float* odata, int width, int height);
+//template <typename T>__global__ void getMaxValueKernel(T* idata, int width, int height);
+__global__ void colormapJet(float* idata, unsigned char* odata, int max, int width, int height);
+__global__ void colormapHot(float* idata, unsigned char* odata, int max, int width, int height);
+__global__ void colormapCold(float* idata, unsigned char* odata, int max, int width, int height);
+__global__ void colormapBlue(float* idata, unsigned char* odata, int max, int width, int height);
+
+template <typename T>__global__ void getMaxValueKernel(T* idata, int width, int height)
+{
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+	int i = width/2;
+
+	if(tidx < width/2 && tidy < height)
+	{
+		while(i != 0)
+		{
+			if(tidx < i)
+				if(idata[tidx + width * tidy] < idata[tidx+i + width * tidy])
+					idata[tidx + width * tidy] = idata[tidx+i + width * tidy];
+			//__syncthreads();
+			i /= 2;
+		}
+		i = height/2;
+		while(i != 0)
+		{
+			if(tidy < i)
+				if(idata[width * tidy] < idata[(i + tidy)*width])
+					idata[width * tidy] = idata[(i + tidy)*width];
+			//__syncthreads();
+			i /= 2;
+		}
+	}
+}
+
+
 #endif

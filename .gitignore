@@ -1,0 +1,13 @@
+# Don't track content of these folders
+obj/
+bin/
+img/
+
+
+# Compiled source #
+###################
+*.bmp
+bin/run
+obj/*.o
+*.csv
+*.dat

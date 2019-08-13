@@ -92,3 +92,43 @@ __global__ void absoluteKernel(cufftComplex* idata, float* odata, int width, int
 		odata[tidy*width + tidx] = sqrt(idata[tidy*width + tidx].x * idata[tidy*width + tidx].x + idata[tidy*width + tidx].y*idata[tidy*width + tidx].y);
 	}
 }
+
+__global__ void colormapJet(float* idata, unsigned char* odata, int max, int width, int height)
+{
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+	if(tidx < width && tidy < height)
+	{
+		odata[tidx + width*tidy] = (unsigned char)255*idata[tidx + width*tidy]/max;
+	}
+}
+
+__global__ void colormapHot(float* idata, unsigned char* odata, int max, int width, int height)
+{
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+	if(tidx < width && tidy < height)
+	{
+		odata[tidx + width*tidy] = (unsigned char)255*idata[tidx + width*tidy]/max;
+	}
+}
+
+__global__ void colormapCold(float* idata, unsigned char* odata, int max, int width, int height)
+{
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+	if(tidx < width && tidy < height)
+	{
+		odata[tidx + width*tidy] = (unsigned char)255*idata[tidx + width*tidy]/max;
+	}
+}
+
+__global__ void colormapBlue(float* idata, unsigned char* odata, int max, int width, int height)
+{
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+	if(tidx < width && tidy < height)
+	{
+		odata[tidx + width*tidy] = (unsigned char)255*idata[tidx + width*tidy]/max;
+	}
+}
