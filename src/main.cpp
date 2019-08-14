@@ -21,11 +21,7 @@ void kernelPerformanceTest();
 
 int main(int argc, char** argv)
 {
-<<<<<<< HEAD
-	// testClasses();
-=======
 	testClasses();
->>>>>>> 81197c73227faa59e5361eafdde2755f13fe8cae
 	kernelPerformanceTest();
 	return 0;
 }
@@ -60,11 +56,7 @@ void kernelPerformanceTest()
 
 	FILE* fid;
 	fid = fopen("results.csv", "w");
-<<<<<<< HEAD
-	fprintf(fid, "Size,Win cal, Win real,Win cplx,Tranpose,Hilbert,FFT(C2C),FFT(R2C),IFFT(C2C),Abs\n");
-=======
 	fprintf(fid, "Size,Win cal, Win real,Win cplx,Tranpose,Abs,Hilbert,FFT(C2C),FFT(R2C),IFFT(C2C)\n");
->>>>>>> 81197c73227faa59e5361eafdde2755f13fe8cae
 	printf("Starting simulation of processing steps... \n");
 	for(int k = 0; k < NOF_IMAGES; k++)
 	{
@@ -106,47 +98,27 @@ void kernelPerformanceTest()
 				timing[3] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
 
 				start = clock();
-<<<<<<< HEAD
-				cu_base.hilbertTransform(cu_algo.getFloatBuffer(), cu_algo.getComplexBuffer(), width[k], height[k]);
-=======
 				cu_base.absolute(cu_algo.getComplexBuffer(), cu_algo.getFloatBuffer(), width[k], height[k]);
->>>>>>> 81197c73227faa59e5361eafdde2755f13fe8cae
 				end = clock();
 				timing[4] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
 
 				start = clock();
-<<<<<<< HEAD
-				cu_base.c2c1dFFT(cu_algo.getComplexBuffer(), width[k], height[k]);
-=======
 				cu_base.hilbertTransform(cu_algo.getFloatBuffer(), cu_algo.getComplexBuffer(), width[k], height[k]);
->>>>>>> 81197c73227faa59e5361eafdde2755f13fe8cae
 				end = clock();
 				timing[5] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
 
 				start = clock();
-<<<<<<< HEAD
-				cu_base.r2c1dFFT(cu_algo.getFloatBuffer(), cu_algo.getComplexBuffer(), width[k], height[k]);
-=======
 				cu_base.c2c1dFFT(cu_algo.getComplexBuffer(), width[k], height[k]);
->>>>>>> 81197c73227faa59e5361eafdde2755f13fe8cae
 				end = clock();
 				timing[6] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
 
 				start = clock();
-<<<<<<< HEAD
-				cu_base.c2c1dIFFT(cu_algo.getComplexBuffer(), width[k], height[k]);
-=======
 				cu_base.r2c1dFFT(cu_algo.getComplexBuffer(), width[k], height[k]);
->>>>>>> 81197c73227faa59e5361eafdde2755f13fe8cae
 				end = clock();
 				timing[7] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
 
 				start = clock();
-<<<<<<< HEAD
-				cu_base.absolute(cu_algo.getComplexBuffer(), cu_algo.getFloatBuffer(), width[k], height[k]);
-=======
 				cu_base.c2c1dInverseFFT(cu_algo.getComplexBuffer(), width[k], height[k]);
->>>>>>> 81197c73227faa59e5361eafdde2755f13fe8cae
 				end = clock();
 				timing[8] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
 			}
@@ -158,11 +130,7 @@ void kernelPerformanceTest()
 				else
 					fprintf(fid, "  %.4f,", avg_time[j]);
 			}
-<<<<<<< HEAD
-			if(k != NOF_IMAGES-1)
-=======
 			if(k != ITERATIONS-1)
->>>>>>> 81197c73227faa59e5361eafdde2755f13fe8cae
 				cu_algo.freeMemory();
 			sleep(1);
 		}

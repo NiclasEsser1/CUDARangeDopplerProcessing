@@ -1,6 +1,6 @@
 IDIR1=inc/
 IDIR2=/usr/include/
-IDIR3=/usr/local/cuda/include/
+IDIR3=/usr/local/cuda/lib64/
 LDIR=/usr/lib/
 SDIR=src/
 ODIR=obj/
@@ -8,15 +8,16 @@ BDIR=bin/
 
 CPP=g++
 NVCC=nvcc
-LIBS=-lcuda -lcudart -lcufft -lrt -lm
 
-_CSRC =main.cpp CudaGPU.cu CudaBase.cu CudaKernels.cu
+LIBS=-lstdc++ -lcuda -lcudart -lcufft -lrt -lm
+
+_CSRC =main.cpp SignalGenerator.cpp CudaGPU.cu CudaBase.cu CudaAlgorithm.cu CudaKernels.cu
 CSRC=$(patsubst %,$(SRC)%,$(_CSRC))
 
-_CDEPS=CudaGPU.cuh CudaBase.cuh CudaKernels.cuh CudaVector.cuh
+_CDEPS=SignalGenerator.h Bitmap_IO.h CudaTest.h CudaGPU.cuh CudaBase.cuh CudaAlgorithm.cuh CudaKernels.cuh CudaVector.cuh
 CDEPS=$(patsubst %,$(IDIR1)%,$(_CDEPS))
 
-_OBJ=main.o CudaGPU.o CudaBase.o CudaKernels.o
+_OBJ=main.o SignalGenerator.o CudaGPU.o CudaBase.o CudaAlgorithm.o CudaKernels.o
 OBJ=$(patsubst %,$(ODIR)%,$(_OBJ))
 
 $(ODIR)%.o: $(SDIR)%.cpp $(CDEPS)
