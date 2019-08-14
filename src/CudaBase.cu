@@ -5,6 +5,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <cufft.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <iostream>
 
@@ -16,54 +17,23 @@ _________
 CudaBase::CudaBase(CudaGPU* device)
 {
 	setDevice(device);
-	setLength(0);
-	setHeight(0);
 }
 
 CudaBase::~CudaBase()
 {
-	freeMemory();
-}
-
-void CudaBase::freeMemory()
-{
-	freeCudaVector(floatBuffer);
-	freeCudaVector(windowBuf);
-	freeCudaVector(complexBuffer);
-	freeCudaVector(transposeBuf);
-}
-
-bool CudaBase::initDeviceEnv()
-{
-	//Allocate device memory for processing chain
-	printf("Allocate memory for processing buffer\n");
-	total_used_mem = x_size * y_size * 3 * sizeof(cufftComplex) + x_size * sizeof(cufftComplex);
-	printf("needed mem: %ld MBytes; total avaible mem: %ld MBytes\n", total_used_mem/(1024*1024),device->totalMemory()/(1024*1024));
-	if(device->checkMemory(total_used_mem))
-	{
-		floatBuffer = new CudaVector<float>(device, x_size * y_size);
-		complexBuffer = new CudaVector<cufftComplex>(device, x_size * y_size);
-		transposeBuf = new CudaVector<cufftComplex>(device, x_size * y_size);
-		windowBuf = new CudaVector<float>(device, x_size);
-		return 1;
-	}
-	else
-	{
-		printf("Not enough memory avaible on the used device, aborting... \n");
-		return 0;
-	}
 
 }
 
-void CudaBase::setWindow(winType type, numKind kind)
+
+void CudaBase::setWindow(float* idata, int width, winType type, numKind kind)
 {
 	win_type = type;
 	win_kind = kind;
-	win_len = x_size;
-	calculateWindowTaps();
+	win_len = width;
+	calculateWindowTaps(idata);
 }
 
-void CudaBase::windowReal(float* idata, int width, int height)
+void CudaBase::windowReal(float* idata, float* window, int width, int height)
 {
 	int tx = MAX_NOF_THREADS;
 	int bx = width/tx+1;
@@ -73,11 +43,11 @@ void CudaBase::windowReal(float* idata, int width, int height)
 	dim3 gridSize(bx, by);
 
 	//printf("Performing windowing (real)... ");
-	windowMultiplyReal<<<gridSize,blockSize>>>((float*)idata, windowBuf->getDevPtr(), width, height);
+	windowMultiplyReal<<<gridSize,blockSize>>>((float*)idata, window, width, height);
 	//printf("done\n");
 }
 
-void CudaBase::windowCplx(cufftComplex* idata, int width, int height)
+void CudaBase::windowCplx(cufftComplex* idata, float* window, int width, int height)
 {
 	int tx = MAX_NOF_THREADS;
 	int bx = width/tx+1;
@@ -87,11 +57,11 @@ void CudaBase::windowCplx(cufftComplex* idata, int width, int height)
 	dim3 gridSize(bx, by);
 
 	//printf("Performing windowing (complex)... ");
-	windowMultiplyCplx<<<gridSize,blockSize>>>(idata, windowBuf->getDevPtr(), width, height);
+	windowMultiplyCplx<<<gridSize,blockSize>>>(idata, window, width, height);
 	//printf("done\n");
 }
 
-void CudaBase::calculateWindowTaps()
+void CudaBase::calculateWindowTaps(float* idata)
 {
 	int tx = MAX_NOF_THREADS;
 	int bx = win_len / MAX_NOF_THREADS + 1;
@@ -103,22 +73,22 @@ void CudaBase::calculateWindowTaps()
 	{
 		case HAMMING:
 			//printf("Calculate hamming window... ");
-			windowHamming <<<gridSize, blockSize >>> (windowBuf->getDevPtr(), win_len);
+			windowHamming <<<gridSize, blockSize >>> (idata, win_len);
 			CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 		case HANN:
 			//printf("Calculate hann window... ");
-			windowHann <<<gridSize, blockSize >>> (windowBuf->getDevPtr(), win_len);
+			windowHann <<<gridSize, blockSize >>> (idata, win_len);
 			CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 		case BARTLETT:
 			//printf("Calculate bartlett window... ");
-			windowBartlett <<<gridSize, blockSize >>> (windowBuf->getDevPtr(), win_len);
+			windowBartlett <<<gridSize, blockSize >>> (idata, win_len);
 			CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 		case BLACKMAN:
 			//printf("Calculate blackman window... ");
-			windowBlackman <<<gridSize, blockSize >>> (windowBuf->getDevPtr(), win_len);
+			windowBlackman <<<gridSize, blockSize >>> (idata, win_len);
 			CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 	}
@@ -138,7 +108,7 @@ void CudaBase::absolute(cufftComplex* idata, float* odata, int width, int height
 	//printf("done\n");
 }
 
-void CudaBase::transpose(cufftComplex* idata, cufftComplex* odata, int width, int height)
+void CudaBase::transpose(cufftComplex* idata, int width, int height)
 {
 	int tx = 32;
 	int ty = 32;
@@ -147,11 +117,66 @@ void CudaBase::transpose(cufftComplex* idata, cufftComplex* odata, int width, in
 	dim3 blockSize(tx,ty);
 	dim3 gridSize(bx,by);
 	//printf("Transposing buffer... ");
-	transposeBufferGlobalCplx<<<gridSize, blockSize>>>(idata, odata, width, height);
+	CudaVector<cufftComplex>* temp = new CudaVector<cufftComplex>(device, width*height);
+	CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), idata, temp->getSize(), cudaMemcpyDeviceToDevice));
+
+	transposeBufferGlobalCplx<<<gridSize, blockSize>>>(temp->getDevPtr(), idata, width, height);
+
+	delete(temp);
 	//printf("done\n");
 }
+template <typename T>
+T CudaBase::getMaxValue(T* idata, int width, int height)
+{
+	int tx = 32;
+	int ty = 32;
+	int bx = width/tx+1;
+	int by = height/ty+1;
+	float max = 0;
+	dim3 blockSize(tx,ty);
+	dim3 gridSize(bx,by);
 
-void CudaBase::r2c1dFFT(float* idata, cufftComplex *odata, int n, int batch)
+	CudaVector<T>* temp = new CudaVector<T>(device, width*height);
+	CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), idata, temp->getSize(), cudaMemcpyDeviceToDevice));
+
+	getMaxValueKernel<T><<<gridSize, blockSize>>>(temp->getDevPtr(), width, height);
+
+	CUDA_CHECK(cudaMemcpy(&max, &temp->getDevPtr()[0], sizeof(float), cudaMemcpyDeviceToHost));
+	delete(temp);
+	return max;
+}
+
+void CudaBase::renderImage(float* idata, unsigned char* odata, int width, int height, color_t type)
+{
+	int tx = 32;
+	int ty = 32;
+	int bx = width/tx+1;
+	int by = height/ty+1;
+	float max = 0;
+	dim3 blockSize(tx,ty);
+	dim3 gridSize(bx,by);
+	max = getMaxValue(idata, width, height);
+	switch(type)
+	{
+		case JET:
+			colormapJet<<<gridSize,blockSize>>>(idata, odata, width, height, max);
+			break;
+		case HOT:
+			colormapHot<<<gridSize,blockSize>>>(idata, odata, width, height, max);
+			break;
+		case COLD:
+			colormapCold<<<gridSize,blockSize>>>(idata, odata, width, height, max);
+			break;
+		case BLUE:
+			colormapBlue<<<gridSize,blockSize>>>(idata, odata, width, height, max);
+			break;
+	}
+}
+/*
+*	FFT functions
+*/
+
+void CudaBase::r2c1dFFT(float* idata, cufftComplex* odata, int n, int batch)
 {
 	//printf("Performing 1D FFT (r2c)... ");
 	cufftHandle plan;
@@ -209,10 +234,12 @@ void CudaBase::hilbertTransform(float* idata, cufftComplex* odata, int n, int ba
 	//printf("done\n");
 }
 
-void CudaBase::printWindowTaps()
+
+
+void CudaBase::printWindowTaps(float* idata)
 {
 	float* help = (float*)malloc(win_len*sizeof(float));
-	CUDA_CHECK(cudaMemcpy(help, windowBuf->getDevPtr(), win_len*sizeof(float), cudaMemcpyDeviceToHost));
+	CUDA_CHECK(cudaMemcpy(help, idata, win_len*sizeof(float), cudaMemcpyDeviceToHost));
 	for(int i = 0; i < win_len; i++)
 		printf("Tap[%d] = %f\n",i,help[i]);
 }

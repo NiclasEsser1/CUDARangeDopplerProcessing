@@ -1,7 +1,6 @@
 #ifndef CUDABASE_H_
 #define CUDABASE_H_
 
-#include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <cufft.h>
 #include <stdio.h>
@@ -10,6 +9,7 @@
 
 #include "CudaGPU.cuh"
 #include "CudaVector.cuh"
+#include "CudaKernels.cuh"
 
 #define MAX_NOF_THREADS 1024
 #define TRANSPOSE_DIM 32
@@ -17,61 +17,38 @@
 
 typedef enum { HAMMING, HANN, BARTLETT, BLACKMAN } winType;
 typedef enum { REAL, COMPLEX } numKind;
-
-typedef struct
-{
-	int x;
-}med_filter;
+typedef enum { JET, COLD, HOT, BLUE} color_t;
 
 class CudaBase
 {
 public:
 	CudaBase(CudaGPU* device);
 	~CudaBase();
-	bool initDeviceEnv();
-    void freeMemory();
 	void hilbertTransform(float* idata, cufftComplex* odata, int n, int batch);
     void absolute(cufftComplex* idata, float* odata, int width, int height);
-    void transpose(cufftComplex* idata, cufftComplex* odata, int width, int height);
+    void transpose(cufftComplex* idata, int width, int height);
     void r2c1dFFT(float* idata, cufftComplex *odata, int n, int batch);
     void c2c1dIFFT(cufftComplex* idata, int n, int batch);
     void c2c1dFFT(cufftComplex* idata, int n, int batch);
-    void windowReal(float* idata, int width, int height);
-    void windowCplx(cufftComplex* idata, int width, int height);
+	void calculateWindowTaps(float* idata);
+    void windowReal(float* idata, float* window, int width, int height);
+    void windowCplx(cufftComplex* idata, float* window, int width, int height);
+	void renderImage(float* idata, unsigned char* odata, int width, int height, color_t type = JET);
+	template <typename T> T getMaxValue(T* idata, int width, int height);
 
-    void setLength(int val){x_size = val;}
-	void setHeight(int val){y_size = val;}
 	void setDevice(CudaGPU* val){device = val;}
-    void setWindow(winType type = HAMMING, numKind kind = REAL);
-	float* getFloatBuffer(){return floatBuffer->getDevPtr();}
-	cufftComplex* getComplexBuffer(){return complexBuffer->getDevPtr();}
-	cufftComplex* getTransposeBuffer(){return transposeBuf->getDevPtr();}
+    void setWindow(float* idata, int width, winType type = HAMMING, numKind kind = REAL);
 
-    void printWindowTaps();
+	CudaGPU* getDevice(){return device;}
+
+    void printWindowTaps(float* idata);
 private:
 	CudaGPU* device;
-	CudaVector<float>* floatBuffer;
-	CudaVector<float>* windowBuf;
-	CudaVector<cufftComplex>* complexBuffer;
-	CudaVector<cufftComplex>* transposeBuf;
     winType win_type;
 	numKind win_kind;
-    std::size_t total_used_mem;
 	int win_len;
-	int x_size;
-	int y_size;
 protected:
-    template<typename T> void memCopyBuffer(T* dst, T* src, size_t size, cudaMemcpyKind kind = cudaMemcpyHostToDevice);
-    template<typename T> void allocateDeviceMem(T* buf, size_t elements);
-    template<typename T> void freeCudaVector(CudaVector<T>* vec)
-    {
-    	if (vec != NULL)
-    	{
-    		vec->~CudaVector();
-    	}
-    }
-	void freeDeviceMem(void* ptr);
-	void calculateWindowTaps();
+
 	void r2cManyFFT(float* idata, cufftComplex* odata, int* nfft, int rank);
 	void c2cManyInPlaceFFT(cufftComplex* data, int *nfft, int rank);
 	void c2cManyInPlaceIFFT(cufftComplex* data, int *nfft, int rank);
