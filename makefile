@@ -1,6 +1,6 @@
 IDIR1=inc/
 IDIR2=/usr/include/
-IDIR3=/usr/local/cuda/lib64/
+IDIR3=/usr/local/cuda/include/
 LDIR=/usr/lib/
 SDIR=src/
 ODIR=obj/
@@ -8,7 +8,7 @@ BDIR=bin/
 
 CPP=g++
 NVCC=nvcc
-LIBS=-lstdc++ -lcuda -lcudart -lcufft -lrt -lm
+LIBS=-lcuda -lcudart -lcufft -lrt -lm
 
 _CSRC =main.cpp CudaGPU.cu CudaBase.cu CudaKernels.cu
 CSRC=$(patsubst %,$(SRC)%,$(_CSRC))
