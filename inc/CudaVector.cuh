@@ -31,8 +31,6 @@ public:
     __host__
     void operator delete(void* object)
     {
-        // if(m_bValues != NULL)
-        //     CUDA_CHECK(cudaFree(m_bValues));
         free(object);
     }
 
@@ -60,7 +58,7 @@ public:
     ~CudaVector()
     {
     	// if(m_bValues != NULL)
-    	// 	CUDA_CHECK(cudaFree(m_bValues));
+		CUDA_CHECK(cudaFree(m_bValues));
     }
 
     void resize(std::size_t size = 1, bool print = false)

@@ -105,11 +105,14 @@ protected:
         Bitmap_IO image(x_size/2+1, y_size);
         object->setWidth(x_size);
         object->setHeight(y_size);
-        // if(object->initDeviceEnv())
-        //     object->rangeDopplerAlgorithm(idata, HAMMING, COMPLEX);
         if(object->initDeviceEnv())
+        {
+            object->rangeDopplerAlgorithm(idata, image.GetImagePtr(),HAMMING, COMPLEX);
+            image.Save("img/range_doppler_map_complex.bmp");
             object->rangeDopplerAlgorithm(idata, image.GetImagePtr(), HAMMING, REAL);
-        image.Save("img/range_doppler_map.bmp");
+            image.Save("img/range_doppler_map_real.bmp");
+        }
+
         return TEST_SUCCED;
     }
 

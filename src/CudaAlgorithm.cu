@@ -88,12 +88,12 @@ void CudaAlgorithm::rangeDopplerAlgorithm(float* idata, char* odata, winType typ
     {
         base->setWindow(windowBuffer->getDevPtr(), x_size, type, kind);
         base->windowReal(floatBuffer->getDevPtr(), windowBuffer->getDevPtr(), x_size, y_size);
-        base->r2c1dFFT(floatBuffer->getDevPtr(), complexBuffer->getDevPtr(), x_size, y_size);
-        floatBuffer->resize((x_size/2+1)*y_size, true);
+        base->r2c1dFFT(complexBuffer->getDevPtr(), x_size, y_size, floatBuffer->getDevPtr());
     }
-    base->transpose(complexBuffer->getDevPtr(), x_size/2+1, y_size);
+    floatBuffer->resize((x_size/2+1)*y_size, true);
+    // base->transpose(complexBuffer->getDevPtr(), x_size/2+1, y_size);
     // base->c2c1dFFT(complexBuffer->getDevPtr(), y_size, x_size/2+1);
-    base->transpose(complexBuffer->getDevPtr(), y_size, x_size/2+1);
+    // base->transpose(complexBuffer->getDevPtr(), y_size, x_size/2+1);
     base->absolute(complexBuffer->getDevPtr(), floatBuffer->getDevPtr(), x_size/2+1, y_size);
     max = base->getMaxValue(floatBuffer->getDevPtr(), x_size/2+1, y_size);
     printf("MAX: %f\n",max);

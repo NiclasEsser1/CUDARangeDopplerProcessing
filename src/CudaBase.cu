@@ -45,6 +45,7 @@ void CudaBase::windowReal(float* idata, float* window, int width, int height)
 
 	//printf("Performing windowing (real)... ");
 	windowMultiplyReal<<<gridSize,blockSize>>>((float*)idata, window, width, height);
+	CUDA_CHECK(cudaDeviceSynchronize());
 	//printf("done\n");
 }
 
@@ -59,6 +60,7 @@ void CudaBase::windowCplx(cufftComplex* idata, float* window, int width, int hei
 
 	//printf("Performing windowing (complex)... ");
 	windowMultiplyCplx<<<gridSize,blockSize>>>(idata, window, width, height);
+	CUDA_CHECK(cudaDeviceSynchronize());
 	//printf("done\n");
 }
 
@@ -106,6 +108,7 @@ void CudaBase::absolute(cufftComplex* idata, float* odata, int width, int height
 	dim3 gridSize(bx, by);
 	//printf("Calculating absolute values... ");
 	absoluteKernel<<<gridSize,blockSize>>>(idata, odata, width, height);
+	CUDA_CHECK(cudaDeviceSynchronize());
 	//printf("done\n");
 }
 
@@ -122,7 +125,7 @@ void CudaBase::transpose(cufftComplex* idata, int width, int height)
 	CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), idata, temp->getSize(), cudaMemcpyDeviceToDevice));
 
 	transposeBufferGlobalCplx<<<gridSize, blockSize>>>(temp->getDevPtr(), idata, width, height);
-
+	CUDA_CHECK(cudaDeviceSynchronize());
 	delete(temp);
 	//printf("done\n");
 }
@@ -141,6 +144,7 @@ T CudaBase::getMaxValue(T* idata, int width, int height)
 	CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), idata, temp->getSize(), cudaMemcpyDeviceToDevice));
 
 	getMaxValueKernel<T><<<gridSize, blockSize>>>(temp->getDevPtr(), width, height);
+	CUDA_CHECK(cudaDeviceSynchronize());
 
 	CUDA_CHECK(cudaMemcpy(&max, &temp->getDevPtr()[0], sizeof(float), cudaMemcpyDeviceToHost));
 	delete(temp);
@@ -161,15 +165,19 @@ void CudaBase::renderImage(float* idata, unsigned char* odata, int width, int he
 	{
 		case JET:
 			colormapJet<<<gridSize,blockSize>>>(idata, odata, width, height, max);
+			CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 		case HOT:
 			colormapHot<<<gridSize,blockSize>>>(idata, odata, width, height, max);
+			CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 		case COLD:
 			colormapCold<<<gridSize,blockSize>>>(idata, odata, width, height, max);
+			CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 		case BLUE:
 			colormapBlue<<<gridSize,blockSize>>>(idata, odata, width, height, max);
+			CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 	}
 }
@@ -177,25 +185,35 @@ void CudaBase::renderImage(float* idata, unsigned char* odata, int width, int he
 *	FFT functions
 */
 
-void CudaBase::r2c1dFFT(float* idata, cufftComplex* odata, int n, int batch)
+void CudaBase::r2c1dFFT(cufftComplex* idata, int n, int batch, cufftReal* odata)
 {
 	//printf("Performing 1D FFT (r2c)... ");
 	cufftHandle plan;
 	// Plan for FFT
 	CUDA_CHECK_FFT(cufftPlan1d(&plan, n, CUFFT_R2C, batch));
-	CUDA_CHECK_FFT(cufftExecR2C(plan, (cufftReal*)idata, odata));
+	if(odata == NULL)
+	{
+		CUDA_CHECK_FFT(cufftExecR2C(plan, (cufftReal*)idata, idata));
+	}
+	else
+	{
+		CUDA_CHECK_FFT(cufftExecR2C(plan, odata, idata));
+	}
 	CUDA_CHECK_FFT(cufftDestroy(plan));
 	//printf("done! \n");
 }
 
-void CudaBase::c2c1dIFFT(cufftComplex* idata, int n, int batch)
+void CudaBase::c2c1dInverseFFT(cufftComplex* idata, int n, int batch)
 {
 	//printf("Performing 1D inverse FFT (c2c)... ");
 	cufftHandle plan;
 	// Plan for FFT
 	CUDA_CHECK_FFT(cufftPlan1d(&plan, n, CUFFT_C2C, batch));
-	CUDA_CHECK_FFT(cufftExecC2C(plan, idata, idata, CUFFT_INVERSE));
+	CUDA_CHECK(cudaDeviceSynchronize());
+	//CUDA_CHECK_FFT(cufftExecC2C(plan, idata, idata, CUFFT_INVERSE));
+	CUDA_CHECK(cudaDeviceSynchronize());
 	CUDA_CHECK_FFT(cufftDestroy(plan));
+	CUDA_CHECK(cudaDeviceSynchronize());
 	//printf("done! \n");
 }
 
@@ -205,9 +223,12 @@ void CudaBase::c2c1dFFT(cufftComplex* idata, int n, int batch)
 	cufftHandle plan;
 	// Plan for FFT
 	CUDA_CHECK_FFT(cufftPlan1d(&plan, n, CUFFT_C2C, batch));
+	CUDA_CHECK(cudaDeviceSynchronize());
 	// Execute in place FFT (destination = source)
 	CUDA_CHECK_FFT(cufftExecC2C(plan, idata, idata, CUFFT_FORWARD));
+	CUDA_CHECK(cudaDeviceSynchronize());
 	CUDA_CHECK_FFT(cufftDestroy(plan));
+	CUDA_CHECK(cudaDeviceSynchronize());
 	//printf("done! \n");
 }
 
@@ -230,8 +251,8 @@ void CudaBase::r2cManyFFT(float* idata, cufftComplex *odata, int *nfft, int  ran
 void CudaBase::hilbertTransform(float* idata, cufftComplex* odata, int n, int batch)
 {
 	//printf("Performing hilbert transform... \n");
-	r2c1dFFT(idata, odata, n, batch);
-	c2c1dIFFT(odata, n/2+1, batch);
+	r2c1dFFT(odata, n, batch, idata);
+	c2c1dInverseFFT(odata, n/2+1, batch);
 	//printf("done\n");
 }
 
