@@ -27,8 +27,8 @@ public:
 	void hilbertTransform(float* idata, cufftComplex* odata, int n, int batch);
     void absolute(cufftComplex* idata, float* odata, int width, int height);
     void transpose(cufftComplex* idata, int width, int height);
-    void r2c1dFFT(float* idata, cufftComplex *odata, int n, int batch);
-    void c2c1dIFFT(cufftComplex* idata, int n, int batch);
+    void r2c1dFFT(cufftComplex *idata, int n, int batch, cufftReal* odata = NULL );
+    void c2c1dInverseFFT(cufftComplex* idata, int n, int batch);
     void c2c1dFFT(cufftComplex* idata, int n, int batch);
 	void calculateWindowTaps(float* idata);
     void windowReal(float* idata, float* window, int width, int height);

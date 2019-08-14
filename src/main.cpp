@@ -5,12 +5,13 @@
 #include "Bitmap_IO.h"
 
 #include <stdio.h>
+#include <cuda_runtime_api.h>
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
 #include <sys/types.h>
 
-#define ITERATIONS ( 10 )
+#define ITERATIONS ( 1 )
 #define NOF_PROCESSING_STEPS 9
 #define NOF_IMAGES 7
 
@@ -20,7 +21,7 @@ void kernelPerformanceTest();
 
 int main(int argc, char** argv)
 {
-	// testClasses();
+	testClasses();
 	kernelPerformanceTest();
 	return 0;
 }
@@ -55,7 +56,7 @@ void kernelPerformanceTest()
 
 	FILE* fid;
 	fid = fopen("results.csv", "w");
-	fprintf(fid, "Size,Win cal, Win real,Win cplx,Tranpose,Hilbert,FFT(C2C),FFT(R2C),IFFT(C2C),Abs\n");
+	fprintf(fid, "Size,Win cal, Win real,Win cplx,Tranpose,Abs,Hilbert,FFT(C2C),FFT(R2C),IFFT(C2C)\n");
 	printf("Starting simulation of processing steps... \n");
 	for(int k = 0; k < NOF_IMAGES; k++)
 	{
@@ -75,7 +76,7 @@ void kernelPerformanceTest()
 			}
 			for(int i = 0; i < ITERATIONS; i++)
 			{
-				//printf("\n\n________________\nRun (%d/%d) \n",i+1,ITERATIONS);
+				// printf("\n\n________________\nRun (%d/%d) \n",i+1,ITERATIONS);
 				start = clock();
 				cu_base.setWindow(cu_algo.getWindowBuffer(), cu_algo.getWindowSize(), HAMMING, REAL);
 				end = clock();
@@ -97,27 +98,27 @@ void kernelPerformanceTest()
 				timing[3] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
 
 				start = clock();
-				cu_base.hilbertTransform(cu_algo.getFloatBuffer(), cu_algo.getComplexBuffer(), width[k], height[k]);
+				cu_base.absolute(cu_algo.getComplexBuffer(), cu_algo.getFloatBuffer(), width[k], height[k]);
 				end = clock();
 				timing[4] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
 
 				start = clock();
-				cu_base.c2c1dFFT(cu_algo.getComplexBuffer(), width[k], height[k]);
+				cu_base.hilbertTransform(cu_algo.getFloatBuffer(), cu_algo.getComplexBuffer(), width[k], height[k]);
 				end = clock();
 				timing[5] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
 
 				start = clock();
-				cu_base.r2c1dFFT(cu_algo.getFloatBuffer(), cu_algo.getComplexBuffer(), width[k], height[k]);
+				cu_base.c2c1dFFT(cu_algo.getComplexBuffer(), width[k], height[k]);
 				end = clock();
 				timing[6] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
 
 				start = clock();
-				cu_base.c2c1dIFFT(cu_algo.getComplexBuffer(), width[k], height[k]);
+				cu_base.r2c1dFFT(cu_algo.getComplexBuffer(), width[k], height[k]);
 				end = clock();
 				timing[7] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
 
 				start = clock();
-				cu_base.absolute(cu_algo.getComplexBuffer(), cu_algo.getFloatBuffer(), width[k], height[k]);
+				cu_base.c2c1dInverseFFT(cu_algo.getComplexBuffer(), width[k], height[k]);
 				end = clock();
 				timing[8] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;
 			}
@@ -129,10 +130,11 @@ void kernelPerformanceTest()
 				else
 					fprintf(fid, "  %.4f,", avg_time[j]);
 			}
-			if(k != NOF_IMAGES-1)
+			if(k != ITERATIONS-1)
 				cu_algo.freeMemory();
 			sleep(1);
 		}
+		//printf("________________\n\n\n");
 	}
 	fclose(fid);
 }

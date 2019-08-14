@@ -27,7 +27,7 @@ public:
     ~CudaAlgorithm();
     void freeMemory();
     template<typename T> void freeCudaVector(CudaVector<T>* vec){
-    	if (vec != NULL){delete(vec);vec=NULL;}
+    	if (vec != NULL){delete(vec);}
     }
     bool initDeviceEnv();
 
