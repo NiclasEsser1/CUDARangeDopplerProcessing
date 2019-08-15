@@ -11,9 +11,9 @@
 #include <cstring>
 #include <sys/types.h>
 
-#define ITERATIONS ( 1 )
+#define ITERATIONS ( 100 )
 #define NOF_PROCESSING_STEPS 9
-#define NOF_IMAGES 7
+#define NOF_IMAGES 8
 
 
 void testClasses();
@@ -37,14 +37,14 @@ void testClasses()
 	// test_base.testCudaBase(128, 256);
 
 	CudaTest<CudaAlgorithm> test_algo(&device, &cu_algo);
-	test_algo.testCudaAlgorithms(512, 512);
+	test_algo.testCudaAlgorithms(256, 256);
 }
 
 
 void kernelPerformanceTest()
 {
-	int height[NOF_IMAGES] = {512, 1024, 2048, 4096, 4096, 8192, 16384};
-	int width[NOF_IMAGES] = {256, 512, 1024, 2048, 4096, 4096, 8192};
+	int height[NOF_IMAGES] = {512, 1024, 2048, 4096, 4096, 8192, 16384, 32768};
+	int width[NOF_IMAGES] = {256, 512, 1024, 2048, 4096, 4096, 8192, 16384};
 
 	float timing[NOF_PROCESSING_STEPS];
 	float avg_time[NOF_PROCESSING_STEPS];
@@ -76,7 +76,7 @@ void kernelPerformanceTest()
 			}
 			for(int i = 0; i < ITERATIONS; i++)
 			{
-				// printf("\n\n________________\nRun (%d/%d) \n",i+1,ITERATIONS);
+				printf("\n\n________________\nRun (%d/%d) \n",i+1,ITERATIONS);
 				start = clock();
 				cu_base.setWindow(cu_algo.getWindowBuffer(), cu_algo.getWindowSize(), HAMMING, REAL);
 				end = clock();

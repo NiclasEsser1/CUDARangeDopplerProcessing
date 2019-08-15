@@ -70,7 +70,7 @@ public:
     bool testCudaAlgorithms(int x_size, int y_size)
     {
         testCode success = TEST_SUCCED;
-        SignalGenerator signal(1000, 100, 10, x_size, y_size);
+        SignalGenerator signal(1000, 100, 1, x_size, y_size);
         signal.sinus();
         signal.save();
         success = validate_rangeDoppler(signal.getSignal(), x_size, y_size);
@@ -101,14 +101,15 @@ public:
 protected:
     testCode validate_rangeDoppler(float* idata, int x_size, int y_size)
     {
-        printf("\n\nTesting rangeDopplerCplxAlgorithm() function... \n");
-        Bitmap_IO image(x_size/2+1, y_size);
+        Bitmap_IO image(x_size/2+1, y_size, 24);
         object->setWidth(x_size);
         object->setHeight(y_size);
         if(object->initDeviceEnv())
         {
+            printf("\n\nTesting rangeDopplerAlgorithm(complex) function... \n");
             object->rangeDopplerAlgorithm(idata, image.GetImagePtr(),HAMMING, COMPLEX);
             image.Save("img/range_doppler_map_complex.bmp");
+            printf("\n\nTesting rangeDopplerAlgorithm(real) function... \n");
             object->rangeDopplerAlgorithm(idata, image.GetImagePtr(), HAMMING, REAL);
             image.Save("img/range_doppler_map_real.bmp");
         }

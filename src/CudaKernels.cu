@@ -97,9 +97,15 @@ __global__ void colormapJet(float* idata, unsigned char* odata, int max, int wid
 {
 	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+	unsigned char c_max = 0x00;
+	unsigned char c_min = 0x00;
 	if(tidx < width && tidy < height)
 	{
-		odata[tidx + width*tidy] = (unsigned char)255*idata[tidx + width*tidy]/max;
+		c_max = (unsigned char)127*idata[tidx + width*tidy]/max;
+		c_min = ~c_max;
+		odata[(tidx + width*tidy) * 3 + 0] = c_max;
+		odata[(tidx + width*tidy) * 3 + 1] = (unsigned char)63*idata[tidx + width*tidy]/max;
+		odata[(tidx + width*tidy) * 3 + 2] = c_min;
 	}
 }
 
@@ -107,9 +113,15 @@ __global__ void colormapHot(float* idata, unsigned char* odata, int max, int wid
 {
 	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+	unsigned char c_max = 0x00;
+	unsigned char c_min = 0x00;
 	if(tidx < width && tidy < height)
 	{
-		odata[tidx + width*tidy] = (unsigned char)255*idata[tidx + width*tidy]/max;
+		c_max = (unsigned char)127*idata[tidx + width*tidy]/max;
+		c_min = ~c_max;
+		odata[(tidx + width*tidy) * 3 + 0] = c_max;
+		odata[(tidx + width*tidy) * 3 + 1] = (unsigned char)63*idata[tidx + width*tidy]/max;
+		odata[(tidx + width*tidy) * 3 + 2] = c_min;
 	}
 }
 

@@ -10,17 +10,17 @@ class Bitmap_IO {
 public:
 	Bitmap_IO() : image( NULL ) {}
 
-	Bitmap_IO( int w, int h ) {
-		image = new char[ w * h ];
+	Bitmap_IO( int w, int h, int c ) {
+		image = new char[ w * h * c/8];
 		header.filesz = sizeof( bmpHeader ) + sizeof( bmpInfo ) + ( w * h ) + 2 + 1024;
 		header.bmp_offset = sizeof( bmpHeader ) + sizeof( bmpInfo ) + 2 + 1024;
 		info.header_sz = sizeof( bmpInfo );
 		info.width = w;
 		info.height = h;
 		info.nplanes = 1;
-		info.bitspp = 8;
+		info.bitspp = c;
 		info.compress_type = 0;
-		info.bmp_bytesz = w * h;
+		info.bmp_bytesz = w * h * c/8;
 		info.hres = 2835;
 		info.vres = 2835;
 		info.ncolors = 0;
@@ -34,7 +34,7 @@ public:
 		}
 
 		std::ofstream file( filename, std::ios::out | std::ios::binary );
-
+		
 		file.write( "BM", 2 );
 		file.write( (char*)( &header ), sizeof( bmpHeader ) );
 		file.write( (char*)( &info ), sizeof( bmpInfo ) );
@@ -49,7 +49,7 @@ public:
 			file.write( rgba, 4 );
 		}
 
-		file.write( image, Width() * Height());
+		file.write( image, Width() * Height() * ColorDepth()/8);
 
 		file.close();
 
@@ -98,6 +98,10 @@ public:
 
 	int Height() {
 		return info.height;
+	}
+
+	int ColorDepth() {
+		return info.bitspp;
 	}
 
 	char GetPixel( int x, int y ) {

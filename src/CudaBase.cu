@@ -185,19 +185,19 @@ void CudaBase::renderImage(float* idata, unsigned char* odata, int width, int he
 *	FFT functions
 */
 
-void CudaBase::r2c1dFFT(cufftComplex* idata, int n, int batch, cufftReal* odata)
+void CudaBase::r2c1dFFT(cufftComplex* odata, int n, int batch, cufftReal* idata)
 {
 	//printf("Performing 1D FFT (r2c)... ");
 	cufftHandle plan;
 	// Plan for FFT
 	CUDA_CHECK_FFT(cufftPlan1d(&plan, n, CUFFT_R2C, batch));
-	if(odata == NULL)
+	if(idata == NULL)
 	{
-		CUDA_CHECK_FFT(cufftExecR2C(plan, (cufftReal*)idata, idata));
+		CUDA_CHECK_FFT(cufftExecR2C(plan, (cufftReal*)odata, odata));
 	}
 	else
 	{
-		CUDA_CHECK_FFT(cufftExecR2C(plan, odata, idata));
+		CUDA_CHECK_FFT(cufftExecR2C(plan, idata, odata));
 	}
 	CUDA_CHECK_FFT(cufftDestroy(plan));
 	//printf("done! \n");

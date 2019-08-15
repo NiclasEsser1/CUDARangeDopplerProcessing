@@ -4,6 +4,8 @@
 #define CHECK_ALLOCATION(ptr, line, file){if(ptr == NULL){printf("Allocation failed in line %d file: %s \n", line, file);goto error;}}
 #define PI_F   3.14159f
 
+#include <stdio.h>
+#include <stdlib.h>
 
 class SignalGenerator
 {
@@ -33,6 +35,7 @@ private:
 	int channels;
 	int records;
 	int length;
+	std::size_t size;
 	float* p_sig;
 };
 

@@ -64,8 +64,6 @@ public:
     void resize(std::size_t size = 1, bool print = false)
     {
         printf("Resizing cuda vector...\n");
-        CUDA_CHECK(cudaFree(m_bValues));
-        // sleep(3);
         m_bSize = size * sizeof(T);
         eleSize = sizeof(T);
 
@@ -75,6 +73,7 @@ public:
                 printf("Allocating memory: %.4f MBytes\n", (float)m_bSize/(1024*1024));
             CUDA_CHECK(cudaMalloc(&m_bValues, m_bSize ));
             CUDA_CHECK(cudaMemset(m_bValues, 0, m_bSize));
+            CUDA_CHECK(cudaDeviceSynchronize());
         }
         else
         {

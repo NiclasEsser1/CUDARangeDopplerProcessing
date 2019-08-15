@@ -18,12 +18,13 @@ private:
     int x_size;
     int y_size;
     int z_size;
-    std::size_t total_required_mem;
+    int color_depth;
+    double total_required_mem;
 	bool allocated;
 
 public:
     /* Initialization functions */
-    CudaAlgorithm(CudaBase* obj_base, int width = 1, int height = 1, int depth = 1);
+    CudaAlgorithm(CudaBase* obj_base, int width = 1, int height = 1, int depth = 1, int c_depth = 3);
     ~CudaAlgorithm();
     void freeMemory();
     template<typename T> void freeCudaVector(CudaVector<T>* vec){

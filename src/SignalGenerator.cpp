@@ -13,6 +13,7 @@ SignalGenerator::SignalGenerator(float fsample, float fcenter, float amp, int x,
 	records = y;
 	channels = z;
 	amplitude = amp;
+	size = x*y*z*sizeof(*p_sig);
 	p_sig = NULL;
 }
 
@@ -24,9 +25,10 @@ SignalGenerator::~SignalGenerator()
 
 void SignalGenerator::allocateMemory()
 {
-	p_sig = (float*)malloc(length*records*channels*sizeof(float)*2);
+printf("SIZE: %ld \n", size);
+	p_sig = (float*)malloc(size);
 	CHECK_ALLOCATION(p_sig, __LINE__, __FILE__);
-	printf("Allocated memory for signal: %ld kBytes\n", (long)length*records*channels*sizeof(float)/1024);
+	printf("Allocated memory for signal: %lf MBytes\n", (float)size/(1024*1024));
 error:
 	return;
 }
@@ -42,9 +44,9 @@ void SignalGenerator::sinus()
 	allocateMemory();
 	int i, j;
 	printf("Generate sinus signal\n");
-	for (j = 0; j <= records; j++)
+	for (j = 0; j < records; j++)
 		for (i = 0; i < length; i++)
-				p_sig[i + j * length] = (float)amplitude*sin(2*PI_F*fc*i/fs);
+			p_sig[i + j * length] = (float)amplitude*sin(2*PI_F*fc*i/fs);
 }
 
 void SignalGenerator::cosinus()
@@ -52,7 +54,7 @@ void SignalGenerator::cosinus()
 	allocateMemory();
 	int i, j;
 	printf("Generate cosinus signal\n");
-	for (j = 0; j <= records; j++)
+	for (j = 0; j < records; j++)
 		for (i = 0; i < length; i++)
 			p_sig[i + j * length] = amplitude*cos(2 * PI_F*fc*i / fs);
 }
@@ -69,9 +71,9 @@ void SignalGenerator::rectangle()
 			if ((int)(i*fs) % (int)fc/2 == 0)
 				toggle(&k);
 			if (k)
-				p_sig[i + j * length] = amplitude*1;
+				p_sig[i + j * length] = amplitude;
 			else
-				p_sig[i + j * length] = 0;
+				p_sig[i + j * length] = amplitude-1;
 		}
 	}
 }
@@ -109,14 +111,15 @@ void SignalGenerator::save()
 	fwrite((void*)&channels, sizeof(channels), 1, fid);
 	fwrite((void*)&records, sizeof(records), 1, fid);
 	fwrite((void*)&length, sizeof(length), 1, fid);
+	printf("Fsample = %f\n", fs);
 	fwrite((void*)&fs, sizeof(fs), 1, fid);
-	fwrite((void*)getSignal(), sizeof(*p_sig), channels*records*length,fid);
+	fwrite((void*)getSignal(), sizeof(*p_sig), size/sizeof(*p_sig),fid);
 
 }
 
 float* SignalGenerator::getSignal(int pos)
 {
-	return p_sig;
+	return &p_sig[pos];
 }
 
 void  SignalGenerator::setSignal(float* signal)
