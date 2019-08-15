@@ -1,7 +1,8 @@
 IDIR1=inc/
 IDIR2=/usr/include/
-IDIR3=/usr/local/cuda/lib64/
-LDIR=/usr/lib/
+IDIR3=/usr/local/cuda-10.1/include/
+LDIR1=/usr/lib/
+LDIR2=/usr/lib/x86_64-linux-gnu
 SDIR=src/
 ODIR=obj/
 BDIR=bin/
@@ -21,12 +22,12 @@ _OBJ=main.o SignalGenerator.o CudaGPU.o CudaBase.o CudaAlgorithm.o CudaKernels.o
 OBJ=$(patsubst %,$(ODIR)%,$(_OBJ))
 
 $(ODIR)%.o: $(SDIR)%.cpp $(CDEPS)
-	$(NVCC) -I$(IDIR1) -I$(IDIR2) -c $< -o $@
+	$(NVCC) -I$(IDIR1) -I$(IDIR2) -I$(IDIR3) -c $< -o $@
 
 $(ODIR)%.o: $(SDIR)%.cu $(CDEPS)
 	$(NVCC) -I$(IDIR1) -I$(IDIR2) -I$(IDIR3) -c $< -o $@
 
 $(BDIR)run: $(OBJ)
-	$(NVCC) $(OBJ) -o $@ $(LIBS)
+	$(NVCC) -L$(LDIR1) -L$(LDIR2) $(OBJ) -o $@ $(LIBS)
 clean:
 	rm -f $(ODIR)*.o $(BDIR)run
