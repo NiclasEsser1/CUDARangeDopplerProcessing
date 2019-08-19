@@ -27,15 +27,19 @@ public:
 	~CudaBase();
 	void hilbertTransform(float* idata, cufftComplex* odata, int n, int batch);
     void absolute(cufftComplex* idata, float* odata, int width, int height);
-    void transpose(cufftComplex* idata, int width, int height);
     void r2c1dFFT(cufftComplex *odata, int n, int batch, cufftReal* idata = NULL );
     void c2c1dInverseFFT(cufftComplex* idata, int n, int batch);
     void c2c1dFFT(cufftComplex* idata, int n, int batch);
 	void calculateWindowTaps(float* idata);
-    void windowReal(float* idata, float* window, int width, int height);
-    void windowCplx(cufftComplex* idata, float* window, int width, int height);
 	void renderImage(float* idata, unsigned char* odata, int width, int height, color_t type = JET);
-	template <typename T> T getMaxValue(T* idata, int width, int height);
+	template <typename T> void transpose(T* odata, int width, int height, T* idata = NULL);
+	template <typename T> void transposeShared(T* odata, int width, int height, T* idata = NULL);
+	template <typename T> void window(T* idata, float* window, int width, int height);
+	template <typename T> T max(T* idata, int width, int height);
+	template <typename T> T min(T* idata, int width, int height);
+
+	void startCudaEvent(cudaEvent_t* start, cudaEvent_t* stop);
+	float stopCudaEvent(cudaEvent_t* start, cudaEvent_t* stop);
 
 	void setDevice(CudaGPU* val){device = val;}
     void setWindow(float* idata, int width, winType type = HAMMING, numKind kind = REAL);
@@ -43,6 +47,7 @@ public:
 	CudaGPU* getDevice(){return device;}
 
     void printWindowTaps(float* idata);
+
 private:
 	CudaGPU* device;
     winType win_type;

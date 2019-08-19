@@ -40,16 +40,14 @@ int CudaGPU::getDeviceID()
 
 cudaDeviceProp CudaGPU::getProperties()
 {
+    cudaGetDeviceProperties(&prop, id);
     return prop;
 }
 int CudaGPU::checkMemory(size_t size, bool print)
 {
-    std::size_t free, total;
-    cuMemGetInfo(&free, &total);
+    cuMemGetInfo(&free_mem, &total_mem);
     if(size != 0 && print)
-        printf("GPU memory (free): %.4f MBytes\n", (float)free/(1024*1024));
-    setFreeMemory(free);
-    setTotalMemory(total);
+        printf("GPU free mem: (%.2f/%.2f) MBytes\n", (float)free_mem/(1024*1024), (float)total_mem/(1024*1024));
     if(free_mem < size)
         return 0;
     return 1;

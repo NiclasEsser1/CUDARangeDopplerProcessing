@@ -41,12 +41,9 @@ public:
 
 	int checkMemory(std::size_t size = 0, bool print = false);
 
-	void setFreeMemory(size_t val){free_mem = val;}
-	std::size_t getFreeMemory(){return free_mem;}
-	void setTotalMemory(size_t val){total_mem = val;}
-	std::size_t totalMemory(){return total_mem;}
-
-	std::size_t getMemPerBlock(){return prop.sharedMemPerBlock;}
+	std::size_t getFreeMemory(){checkMemory();return free_mem;};
+	std::size_t totalMemory(){checkMemory();return total_mem;}
+	std::size_t sharedMemPerBlock(){return prop.sharedMemPerBlock;}
 private:
     int id;
     cudaDeviceProp prop;

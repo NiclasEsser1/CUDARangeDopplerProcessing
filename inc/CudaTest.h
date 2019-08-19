@@ -39,9 +39,10 @@ public:
     bool testCudaBase(int x_size, int y_size)
     {
         testCode success = TEST_SUCCED;
-        SignalGenerator signal(500, 100, 10, x_size, y_size);
+        SignalGenerator signal(1000, 10, 10, x_size, y_size);
         signal.sinus();
-        success = validate_getMaxValue(signal.getSignal(), x_size, y_size);
+        success = validate_max(signal.getSignal(), x_size, y_size);
+        success = validate_min(signal.getSignal(), x_size, y_size);
         success = validate_renderJet(signal.getSignal(), x_size, y_size);
 
 
@@ -67,10 +68,12 @@ public:
         else
             return false;
     }
-    bool testCudaAlgorithms(int x_size, int y_size)
+    bool testCudaAlgorithms()
     {
+        int x_size = object->getWidth();
+        int y_size = object->getHeight();
         testCode success = TEST_SUCCED;
-        SignalGenerator signal(1000, 100, 1, x_size, y_size);
+        SignalGenerator signal(1000, 10, 10, x_size, y_size);
         signal.sinus();
         signal.save();
         success = validate_rangeDoppler(signal.getSignal(), x_size, y_size);
@@ -83,8 +86,8 @@ public:
 
     // SETTER AND GETTER FUNTIONS
     void setDevice(CudaGPU val){device = val;}
-    CudaGPU getDevice(){return device;}
     void setTestObject(T val){object = val;}
+    CudaGPU getDevice(){return device;}
     T getTestObject(){return object;}
 
     void printfCPUBuffer(float* buf, int width, int height)
@@ -101,26 +104,33 @@ public:
 protected:
     testCode validate_rangeDoppler(float* idata, int x_size, int y_size)
     {
-        Bitmap_IO image(x_size/2+1, y_size, 24);
-        object->setWidth(x_size);
-        object->setHeight(y_size);
+        Bitmap_IO image_cplx(x_size/2, y_size, object->getColorDepth()*8);
+        Bitmap_IO image_real(x_size/2, y_size, object->getColorDepth()*8);
+
+        printf("\n\nTesting rangeDopplerAlgorithm(real) function... \n");
         if(object->initDeviceEnv())
         {
-            printf("\n\nTesting rangeDopplerAlgorithm(complex) function... \n");
-            object->rangeDopplerAlgorithm(idata, image.GetImagePtr(),HAMMING, COMPLEX);
-            image.Save("img/range_doppler_map_complex.bmp");
-            printf("\n\nTesting rangeDopplerAlgorithm(real) function... \n");
-            object->rangeDopplerAlgorithm(idata, image.GetImagePtr(), HAMMING, REAL);
-            image.Save("img/range_doppler_map_real.bmp");
+            object->rangeDopplerAlgorithm(idata, image_cplx.GetImagePtr(),HAMMING, COMPLEX);
+            object->saveVector(object->floatBuffer, "./results/data/processed_cplx.dat");
+            image_cplx.Save("./results/img/range_doppler_map_complex.bmp");
+            object->freeMemory();
         }
-
+        sleep(2);
+        printf("\n\nTesting rangeDopplerAlgorithm(real) function... \n");
+        if(object->initDeviceEnv())
+        {
+            object->rangeDopplerAlgorithm(idata, image_real.GetImagePtr(), HAMMING, REAL);
+            object->saveVector(object->floatBuffer, "results/data/processed_real.dat");
+            image_real.Save("./results/img/range_doppler_map_real.bmp");
+            object->freeMemory();
+        }
         return TEST_SUCCED;
     }
 
 
-    testCode validate_getMaxValue(float* idata, int x_size, int y_size)
+    testCode validate_max(float* idata, int x_size, int y_size)
     {
-        printf("\n\nTesting getMaxValue() function... \n");
+        printf("\n\nTesting max() function... \n");
     	std::size_t buf_size =  x_size * y_size;
     	float cpu_max = 0;
         float max = 0;
@@ -140,15 +150,52 @@ protected:
             // Copy test values from cpu to gpu
     		CUDA_CHECK(cudaMemcpy(gpu_buf->getDevPtr(), idata, gpu_buf->getSize(), cudaMemcpyHostToDevice));
             // Test function
-    		max = object->getMaxValue(gpu_buf->getDevPtr(), x_size, y_size);
+    		max = object->max(gpu_buf->getDevPtr(), x_size, y_size);
             printf("cpu: %f; gpu: %f\n",cpu_max, max);
     	}
     	else
     	{
-    		printf("GPU memory out of space, can not validate getMaxValue()...\n");
+    		printf("GPU memory out of space, can not validate max()...\n");
     		return TEST_OUT_OF_MEM;
     	}
         if(cpu_max != max)
+            return TEST_FAILED;
+
+        printf("passed\n\n");
+    	return TEST_SUCCED;
+    }
+
+    testCode validate_min(float* idata, int x_size, int y_size)
+    {
+        printf("\n\nTesting min() function... \n");
+    	std::size_t buf_size =  x_size * y_size;
+    	float cpu_min = 0;
+        float min = 0;
+
+        // Check if buffer size exceeds memory capacity of gpu
+    	if(buf_size*2*sizeof(float) < device->getFreeMemory())
+    	{
+            // Allocate memory
+            CudaVector<float>* gpu_buf = new CudaVector<float>(device, buf_size);
+
+            // Determine max value on CPU
+    		for(int i = 0; i < buf_size; i++)
+    		{
+    			if(idata[i] < cpu_min)
+    				cpu_min = idata[i];
+    		}
+            // Copy test values from cpu to gpu
+    		CUDA_CHECK(cudaMemcpy(gpu_buf->getDevPtr(), idata, gpu_buf->getSize(), cudaMemcpyHostToDevice));
+            // Test function
+    		min = object->min(gpu_buf->getDevPtr(), x_size, y_size);
+            printf("cpu: %f; gpu: %f\n",cpu_min, min);
+    	}
+    	else
+    	{
+    		printf("GPU memory out of space, can not validate max()...\n");
+    		return TEST_OUT_OF_MEM;
+    	}
+        if(cpu_min != min)
             return TEST_FAILED;
 
         printf("passed\n\n");
@@ -163,7 +210,7 @@ protected:
         CudaVector<float>* gpu_buf = NULL;
         CudaVector<unsigned char>* gpu_img = NULL;
 
-        Bitmap_IO img(x_size, y_size);
+        Bitmap_IO img(x_size, y_size, 8);
 
         if(buf_size*3*sizeof(float) < device->getFreeMemory())
     	{
@@ -179,11 +226,11 @@ protected:
 
             // Copy processed data from device to host
             cudaMemcpy(img.GetImagePtr(), gpu_img->getDevPtr(), gpu_img->getSize(), cudaMemcpyDeviceToHost);
-            img.Save("img/test.bmp");
+            img.Save("./results/img/test.bmp");
         }
     	else
     	{
-    		printf("GPU memory out of space, can not validate getMaxValue()...");
+    		printf("GPU memory out of space, can not validate renderImage()...");
     		return TEST_OUT_OF_MEM;
     	}
 

@@ -12,7 +12,7 @@ public:
 
 	Bitmap_IO( int w, int h, int c ) {
 		image = new char[ w * h * c/8];
-		header.filesz = sizeof( bmpHeader ) + sizeof( bmpInfo ) + ( w * h ) + 2 + 1024;
+		header.filesz = sizeof( bmpHeader ) + sizeof( bmpInfo ) + ( w * h * c / 8) + 2 + 1024;
 		header.bmp_offset = sizeof( bmpHeader ) + sizeof( bmpInfo ) + 2 + 1024;
 		info.header_sz = sizeof( bmpInfo );
 		info.width = w;
@@ -34,10 +34,11 @@ public:
 		}
 
 		std::ofstream file( filename, std::ios::out | std::ios::binary );
-		
+
 		file.write( "BM", 2 );
 		file.write( (char*)( &header ), sizeof( bmpHeader ) );
 		file.write( (char*)( &info ), sizeof( bmpInfo ) );
+		long total =  sizeof(bmpHeader)+sizeof(bmpInfo)+Width() * Height() * ColorDepth()/8;
 
 		char rgba[ 4 ];
 		for( int i = 0; i < 256; ++i ) {

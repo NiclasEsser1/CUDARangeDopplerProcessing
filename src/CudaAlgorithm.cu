@@ -49,11 +49,15 @@ bool CudaAlgorithm::initDeviceEnv()
 	//Allocate device memory for processing chain
 	total_required_mem = (x_size * y_size * sizeof(float)*2
         + x_size * y_size * sizeof(cufftComplex)*2
-        + x_size * y_size * sizeof(unsigned char)
-        + x_size * sizeof(float))/(1024*1024);
+        + x_size * y_size * color_depth * sizeof(unsigned char)
+        + x_size * sizeof(float));
 
-    printf("\nRequired memory: %lf MBytes; total avaible memory: %ld MBytes\n", total_required_mem,device->totalMemory()/(1024*1024));
-	if(total_required_mem < device->totalMemory())
+    printf("\nNeeded memory: %.2lf; free memory (%ld/%ld) MBytes\n",
+        total_required_mem/(1024*1024),
+        device->getFreeMemory()/(1024*1024),
+        device->totalMemory()/(1024*1024)
+    );
+	if(device->checkMemory(total_required_mem))
 	{
 		floatBuffer = new CudaVector<float>(device, x_size * y_size, true);
 		complexBuffer = new CudaVector<cufftComplex>(device, x_size * y_size, true);
@@ -76,31 +80,30 @@ bool CudaAlgorithm::initDeviceEnv()
 
 void CudaAlgorithm::rangeDopplerAlgorithm(float* idata, char* odata, winType type, numKind kind)
 {
-    CUDA_CHECK(cudaMemcpy(floatBuffer->getDevPtr(), idata, floatBuffer->getSize(), cudaMemcpyHostToDevice));
-    complexBuffer->resize((x_size/2+1)*y_size);
-    charBuffer->resize((x_size/2+1)*y_size*color_depth, true);
+    CUDA_CHECK(cudaMemcpy(floatBuffer->getDevPtr(), idata, x_size*y_size*sizeof(float), cudaMemcpyHostToDevice));
+    // floatBuffer->print();
+    complexBuffer->resize((x_size/2+1) * y_size);
+    charBuffer->resize((x_size/2+1) * y_size * color_depth);
 
     if(kind == COMPLEX)
     {
-        // base->setWindow(windowBuffer->getDevPtr(), x_size/2+1, type, kind);
-        // base->hilbertTransform(floatBuffer->getDevPtr(), complexBuffer->getDevPtr(), x_size, y_size);
-        // base->windowCplx(complexBuffer->getDevPtr(), windowBuffer->getDevPtr(), x_size/2+1, y_size);
-        // base->c2c1dFFT(complexBuffer->getDevPtr(), x_size/2+1, y_size);
+        base->setWindow(windowBuffer->getDevPtr(), x_size/2+1, type, kind);
+        base->hilbertTransform(floatBuffer->getDevPtr(), complexBuffer->getDevPtr(), x_size, y_size);
+        base->window(complexBuffer->getDevPtr(), windowBuffer->getDevPtr(), x_size/2+1, y_size);
+        base->c2c1dFFT(complexBuffer->getDevPtr(), x_size/2+1, y_size);
     }
     else
     {
         base->setWindow(windowBuffer->getDevPtr(), x_size, type, kind);
-        base->windowReal(floatBuffer->getDevPtr(), windowBuffer->getDevPtr(), x_size, y_size);
-        // base->r2c1dFFT(complexBuffer->getDevPtr(), x_size, y_size, floatBuffer->getDevPtr());
+        base->window(floatBuffer->getDevPtr(), windowBuffer->getDevPtr(), x_size, y_size);
+        base->r2c1dFFT(complexBuffer->getDevPtr(), x_size, y_size, floatBuffer->getDevPtr());
     }
     floatBuffer->resize((x_size/2+1)*y_size);
     base->transpose(complexBuffer->getDevPtr(), x_size/2+1, y_size);
     base->c2c1dFFT(complexBuffer->getDevPtr(), y_size, x_size/2+1);
     base->transpose(complexBuffer->getDevPtr(), y_size, x_size/2+1);
     base->absolute(complexBuffer->getDevPtr(), floatBuffer->getDevPtr(), x_size/2+1, y_size);
-    floatBuffer->print();
 
     base->renderImage(floatBuffer->getDevPtr(), charBuffer->getDevPtr(), x_size/2+1, y_size, JET);
-    // charBuffer->print();
-    CUDA_CHECK(cudaMemcpy(odata, charBuffer->getDevPtr(), (x_size/2+1)*y_size*color_depth, cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(odata, charBuffer->getDevPtr(), charBuffer->getSize(), cudaMemcpyDeviceToHost));
 }

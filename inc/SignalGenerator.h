@@ -19,6 +19,7 @@ public:
 	void rectangle();
 	void toggle(int *p);
 	float* getSignal(int pos = 0);
+	size_t getSize(){return size;}
 	void setCenterFreq(float val);
 	void setSampleFreq(float val);
 	void setChannels(int val);
@@ -35,7 +36,7 @@ private:
 	int channels;
 	int records;
 	int length;
-	std::size_t size;
+	size_t size;
 	float* p_sig;
 };
 

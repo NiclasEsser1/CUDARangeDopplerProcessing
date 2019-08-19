@@ -58,27 +58,33 @@ public:
     ~CudaVector()
     {
     	// if(m_bValues != NULL)
-		CUDA_CHECK(cudaFree(m_bValues));
+		// CUDA_CHECK(cudaFree(m_bValues));
     }
 
     void resize(std::size_t size = 1, bool print = false)
     {
-        printf("Resizing cuda vector...\n");
+        T* ptr = m_bValues;
         m_bSize = size * sizeof(T);
         eleSize = sizeof(T);
+        if(cudaFree(m_bValues)  == cudaSuccess)
+        {
+            m_bValues = ptr;
+            if(size)
+                printf("Resizing cuda vector...\n");
+            if(device->checkMemory(size, print))
+            {
+                if(size != 0 && print)
+                    printf("Allocating memory: %.4f MBytes\n", (float)m_bSize/(1024*1024));
 
-        if(device->checkMemory(size, print))
-        {
-            if(size != 0 && print)
-                printf("Allocating memory: %.4f MBytes\n", (float)m_bSize/(1024*1024));
-            CUDA_CHECK(cudaMalloc(&m_bValues, m_bSize ));
-            CUDA_CHECK(cudaMemset(m_bValues, 0, m_bSize));
-            CUDA_CHECK(cudaDeviceSynchronize());
-        }
-        else
-        {
-            printf("GPU memory is out of range, could not allocate memory..\n");
-            exit(1);
+                CUDA_CHECK(cudaMalloc(&m_bValues, m_bSize ));
+                CUDA_CHECK(cudaMemset(m_bValues, 0, m_bSize));
+                device->checkMemory(size);
+            }
+            else
+            {
+                printf("GPU memory is out of range, could not allocate memory..\n");
+                exit(1);
+            }
         }
     }
     __host__
@@ -100,21 +106,21 @@ public:
     }
 
     __host__
-    void printComplex()
+    void printComplex(unsigned int first = 0)
     {
         cufftComplex* cpu_buf = (cufftComplex*)malloc(m_bSize);
         CUDA_CHECK(cudaMemcpy(cpu_buf, m_bValues, m_bSize, cudaMemcpyDeviceToHost));
-        for(int i = 0; i < m_bSize/sizeof(T); i++)
+        for(int i = first; i < getSize()/geteleSize(); i++)
         {
             std::cout << "Buf[" << i << "] = " << cpu_buf[i].x << " + i * " << cpu_buf[i].y << std::endl;
         }
     }
     __host__
-    void print()
+    void print(unsigned int first = 0)
     {
         T* cpu_buf = (T*)malloc(m_bSize);
         CUDA_CHECK(cudaMemcpy(cpu_buf, m_bValues, m_bSize, cudaMemcpyDeviceToHost));
-        for(int i = 0; i < m_bSize/sizeof(T); i++)
+        for(int i = first; i < getSize()/geteleSize(); i++)
         {
             std::cout << "Buf[" << i << "] = " << cpu_buf[i] << std::endl;
         }

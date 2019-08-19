@@ -107,13 +107,16 @@ void SignalGenerator::printSignal()
 void SignalGenerator::save()
 {
 	FILE* fid;
-	fid = fopen("./signal.dat", "wb");
+	fid = fopen("./results/data/signal.dat", "wb");
 	fwrite((void*)&channels, sizeof(channels), 1, fid);
 	fwrite((void*)&records, sizeof(records), 1, fid);
 	fwrite((void*)&length, sizeof(length), 1, fid);
-	printf("Fsample = %f\n", fs);
 	fwrite((void*)&fs, sizeof(fs), 1, fid);
 	fwrite((void*)getSignal(), sizeof(*p_sig), size/sizeof(*p_sig),fid);
+	printf("Channels = %d\n", channels);
+	printf("Records = %d\n", records);
+	printf("Samples = %d\n", length);
+	printf("Fsample = %f\n", fs);
 
 }
 
