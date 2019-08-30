@@ -14,6 +14,9 @@ public:
 	~SignalGenerator();
 	void allocateMemory();
 	void freeBuffer(float* buf);
+	double whiteNoiseSample(float snr = 2);
+	void sweep(float bandwidth, float duration, float fdoppler = 0, bool noise = false);
+	void noisySinus(float snr = 1);
 	void sinus();
 	void cosinus();
 	void rectangle();
@@ -27,7 +30,8 @@ public:
 	void setLength(int val);
 	void setSignal(float* signal);
 	void printSignal();
-	void save();
+	void save(float bandwidth = 0, float duration = 0);
+	void load();
 
 private:
 	float fs;

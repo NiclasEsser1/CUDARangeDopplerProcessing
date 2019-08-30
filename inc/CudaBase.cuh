@@ -17,7 +17,7 @@
 
 typedef enum { HAMMING, HANN, BARTLETT, BLACKMAN } winType;
 typedef enum { REAL, COMPLEX } numKind;
-typedef enum { JET, COLD, HOT, BLUE} color_t;
+typedef enum { JET, VIRIDIS, ACCENT, MAGMA, INFERNO, BLUE} color_t;
 
 
 class CudaBase
@@ -31,15 +31,13 @@ public:
     void c2c1dInverseFFT(cufftComplex* idata, int n, int batch);
     void c2c1dFFT(cufftComplex* idata, int n, int batch);
 	void calculateWindowTaps(float* idata);
-	void renderImage(float* idata, unsigned char* odata, int width, int height, color_t type = JET);
+	void mapColors(float* idata, unsigned char* odata, int width, int height, color_t type = JET);
+	void hermitianTranspose(cufftComplex* odata, int width, int height, cufftComplex* idata = NULL);
 	template <typename T> void transpose(T* odata, int width, int height, T* idata = NULL);
 	template <typename T> void transposeShared(T* odata, int width, int height, T* idata = NULL);
 	template <typename T> void window(T* idata, float* window, int width, int height);
 	template <typename T> T max(T* idata, int width, int height);
 	template <typename T> T min(T* idata, int width, int height);
-
-	void startCudaEvent(cudaEvent_t* start, cudaEvent_t* stop);
-	float stopCudaEvent(cudaEvent_t* start, cudaEvent_t* stop);
 
 	void setDevice(CudaGPU* val){device = val;}
     void setWindow(float* idata, int width, winType type = HAMMING, numKind kind = REAL);

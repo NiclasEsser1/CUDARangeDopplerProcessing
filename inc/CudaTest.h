@@ -39,11 +39,12 @@ public:
     bool testCudaBase(int x_size, int y_size)
     {
         testCode success = TEST_SUCCED;
-        SignalGenerator signal(1000, 10, 10, x_size, y_size);
-        signal.sinus();
+        SignalGenerator signal(1000, 100, 10, x_size, y_size);
+        signal.noisySinus();
+        signal.save();
         success = validate_max(signal.getSignal(), x_size, y_size);
         success = validate_min(signal.getSignal(), x_size, y_size);
-        success = validate_renderJet(signal.getSignal(), x_size, y_size);
+        // success = validate_renderJet(signal.getSignal(), x_size, y_size);
 
 
         if(success == TEST_SUCCED)
@@ -72,10 +73,13 @@ public:
     {
         int x_size = object->getWidth();
         int y_size = object->getHeight();
+        float bandwith = 12000000;
+        float duration = 0.0001;
+        float fdoppler = 5000;
         testCode success = TEST_SUCCED;
-        SignalGenerator signal(1000, 10, 10, x_size, y_size);
-        signal.sinus();
-        signal.save();
+        SignalGenerator signal(100000000, 6250000, 10, x_size, y_size);
+        signal.sweep(bandwith, duration, fdoppler);
+        signal.save(bandwith, duration);
         success = validate_rangeDoppler(signal.getSignal(), x_size, y_size);
         if(success == TEST_SUCCED)
             return true;
@@ -104,14 +108,14 @@ public:
 protected:
     testCode validate_rangeDoppler(float* idata, int x_size, int y_size)
     {
-        Bitmap_IO image_cplx(x_size/2, y_size, object->getColorDepth()*8);
-        Bitmap_IO image_real(x_size/2, y_size, object->getColorDepth()*8);
+        Bitmap_IO image_cplx(x_size/2+1, y_size, object->getColorDepth()*8);
+        Bitmap_IO image_real(x_size/2+1, y_size, object->getColorDepth()*8);
 
-        printf("\n\nTesting rangeDopplerAlgorithm(real) function... \n");
+        printf("\n\nTesting rangeDopplerAlgorithm(complex) function... \n");
         if(object->initDeviceEnv())
         {
-            object->rangeDopplerAlgorithm(idata, image_cplx.GetImagePtr(),HAMMING, COMPLEX);
-            object->saveVector(object->floatBuffer, "./results/data/processed_cplx.dat");
+            object->rangeDopplerAlgorithm(idata, image_cplx.GetImagePtr(),HAMMING, COMPLEX, INFERNO);
+            object->saveVector(object->charBuffer, "./results/data/processed_cplx.dat");
             image_cplx.Save("./results/img/range_doppler_map_complex.bmp");
             object->freeMemory();
         }
@@ -119,8 +123,8 @@ protected:
         printf("\n\nTesting rangeDopplerAlgorithm(real) function... \n");
         if(object->initDeviceEnv())
         {
-            object->rangeDopplerAlgorithm(idata, image_real.GetImagePtr(), HAMMING, REAL);
-            object->saveVector(object->floatBuffer, "results/data/processed_real.dat");
+            object->rangeDopplerAlgorithm(idata, image_real.GetImagePtr(), HAMMING, REAL, MAGMA);
+            object->saveVector(object->charBuffer, "results/data/processed_real.dat");
             image_real.Save("./results/img/range_doppler_map_real.bmp");
             object->freeMemory();
         }
@@ -222,7 +226,7 @@ protected:
     		cudaMemcpy(gpu_buf->getDevPtr(), idata, gpu_buf->getSize(), cudaMemcpyHostToDevice);
 
             // Test function renderImage()
-    	    object->renderImage(gpu_buf->getDevPtr(), gpu_img->getDevPtr(), x_size, y_size);
+    	    // object->mapColors(gpu_buf->getDevPtr(), gpu_img->getDevPtr(), x_size, y_size);
 
             // Copy processed data from device to host
             cudaMemcpy(img.GetImagePtr(), gpu_img->getDevPtr(), gpu_img->getSize(), cudaMemcpyDeviceToHost);

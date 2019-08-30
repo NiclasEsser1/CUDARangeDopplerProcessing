@@ -78,7 +78,7 @@ bool CudaAlgorithm::initDeviceEnv()
 
 }
 
-void CudaAlgorithm::rangeDopplerAlgorithm(float* idata, char* odata, winType type, numKind kind)
+void CudaAlgorithm::rangeDopplerAlgorithm(float* idata, char* odata, winType type, numKind kind, color_t colormap)
 {
     CUDA_CHECK(cudaMemcpy(floatBuffer->getDevPtr(), idata, x_size*y_size*sizeof(float), cudaMemcpyHostToDevice));
     // floatBuffer->print();
@@ -90,20 +90,30 @@ void CudaAlgorithm::rangeDopplerAlgorithm(float* idata, char* odata, winType typ
         base->setWindow(windowBuffer->getDevPtr(), x_size/2+1, type, kind);
         base->hilbertTransform(floatBuffer->getDevPtr(), complexBuffer->getDevPtr(), x_size, y_size);
         base->window(complexBuffer->getDevPtr(), windowBuffer->getDevPtr(), x_size/2+1, y_size);
+        base->transpose(complexBuffer->getDevPtr(), x_size/2+1, y_size);
+        base->window(complexBuffer->getDevPtr(), windowBuffer->getDevPtr(), y_size, x_size/2+1);
+        base->transpose(complexBuffer->getDevPtr(), y_size, x_size/2+1);
         base->c2c1dFFT(complexBuffer->getDevPtr(), x_size/2+1, y_size);
     }
     else
     {
         base->setWindow(windowBuffer->getDevPtr(), x_size, type, kind);
         base->window(floatBuffer->getDevPtr(), windowBuffer->getDevPtr(), x_size, y_size);
+        base->transpose(floatBuffer->getDevPtr(), x_size, y_size);
+        base->window(floatBuffer->getDevPtr(), windowBuffer->getDevPtr(), y_size,x_size);
+        base->transpose(floatBuffer->getDevPtr(), y_size, x_size);
         base->r2c1dFFT(complexBuffer->getDevPtr(), x_size, y_size, floatBuffer->getDevPtr());
     }
+    // floatBuffer->save("floatbuffer.dat", x_size, y_size);
     floatBuffer->resize((x_size/2+1)*y_size);
-    base->transpose(complexBuffer->getDevPtr(), x_size/2+1, y_size);
+    base->hermitianTranspose(complexBuffer->getDevPtr(), x_size/2+1, y_size);
     base->c2c1dFFT(complexBuffer->getDevPtr(), y_size, x_size/2+1);
-    base->transpose(complexBuffer->getDevPtr(), y_size, x_size/2+1);
+    base->hermitianTranspose(complexBuffer->getDevPtr(), y_size, x_size/2+1);
     base->absolute(complexBuffer->getDevPtr(), floatBuffer->getDevPtr(), x_size/2+1, y_size);
+    // floatBuffer->save(x_size/2+1, y_size);
 
-    base->renderImage(floatBuffer->getDevPtr(), charBuffer->getDevPtr(), x_size/2+1, y_size, JET);
+    base->mapColors(floatBuffer->getDevPtr(), charBuffer->getDevPtr(), x_size/2+1, y_size, colormap);
+    // charBuffer->save((x_size/2+1), y_size);
+
     CUDA_CHECK(cudaMemcpy(odata, charBuffer->getDevPtr(), charBuffer->getSize(), cudaMemcpyDeviceToHost));
 }

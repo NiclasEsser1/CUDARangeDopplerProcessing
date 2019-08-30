@@ -25,7 +25,6 @@ SignalGenerator::~SignalGenerator()
 
 void SignalGenerator::allocateMemory()
 {
-printf("SIZE: %ld \n", size);
 	p_sig = (float*)malloc(size);
 	CHECK_ALLOCATION(p_sig, __LINE__, __FILE__);
 	printf("Allocated memory for signal: %lf MBytes\n", (float)size/(1024*1024));
@@ -38,7 +37,80 @@ void SignalGenerator::freeBuffer(float* buf)
 	if(buf != NULL)
 		free(buf);
 }
+double SignalGenerator::whiteNoiseSample(float snr)
+{/* Generates additive white Gaussian Noise samples with zero mean and a standard deviation of 1. */
 
+	double temp1;
+	double temp2;
+	double result;
+	int p;
+
+	float namp = amplitude/sqrt(snr); // noise ampltide
+	p = 1;
+
+	while( p > 0 )
+	{
+		temp2 = ( rand() / ( (double)RAND_MAX ) );
+		if ( temp2 == 0 )
+		{// temp2 is >= (RAND_MAX / 2)
+			p = 1;
+		}
+		else
+		{// temp2 is < (RAND_MAX / 2)
+			p = -1;
+		}
+	}
+
+	temp1 = cos( ( namp * (double)PI_F ) * rand() / ( (double)RAND_MAX ) );
+	result = sqrt( -namp * log( temp2 ) ) * temp1;
+
+	return result;	// return the generated random sample to the caller
+
+}// end AWGN_generator()
+
+void SignalGenerator::sweep(float bandwidth, float duration, float fdoppler, bool noise)
+{
+	allocateMemory();
+	float f, n = 0, snr = 2;
+	float tstep = duration / length;
+	float fstep = bandwidth / duration * tstep;
+	float fstart = fc - bandwidth/2;
+	float fstop = fc + bandwidth/2;
+	int i, j;
+	if(noise)
+	{
+		printf("Insert signal to noise ratio: ");
+		scanf("%f", &snr);
+	}
+	printf("Generating sweep... \n");
+	for (j = 0; j < records; j++)
+	{
+		f = fstart + fdoppler*j;
+		for (i = 0; i < length; i++)
+		{
+			f += fstep;
+			if(noise)
+				n = whiteNoiseSample(snr);
+			p_sig[i + j * length] = (float)amplitude*sin(2*PI_F*f*i/fs) + n;
+			// if(i == length -1)
+			// 	printf("End: %f; Fstop: %f, fstep: %f; tstep: %f \n", f, fstop, fstep, tstep);
+		}
+	}
+}
+
+void SignalGenerator::noisySinus(float snr)
+{
+	allocateMemory();
+	int i, j;
+	double n;
+	printf("Generate sinus signal\n");
+	for (j = 0; j < records; j++)
+		for (i = 0; i < length; i++)
+		{
+			n = whiteNoiseSample(snr);
+			p_sig[i + j * length] = (float)amplitude*sin(2*PI_F*fc*i/fs) + n;
+		}
+}
 void SignalGenerator::sinus()
 {
 	allocateMemory();
@@ -104,19 +176,45 @@ void SignalGenerator::printSignal()
 	}
 }
 
-void SignalGenerator::save()
+void SignalGenerator::save(float bandwidth, float duration)
 {
+	int ele_size = sizeof(float);
 	FILE* fid;
 	fid = fopen("./results/data/signal.dat", "wb");
 	fwrite((void*)&channels, sizeof(channels), 1, fid);
 	fwrite((void*)&records, sizeof(records), 1, fid);
 	fwrite((void*)&length, sizeof(length), 1, fid);
+	fwrite((void*)&ele_size, sizeof(ele_size), 1, fid);
 	fwrite((void*)&fs, sizeof(fs), 1, fid);
+	fwrite((void*)&fc, sizeof(fc), 1, fid);
+	fwrite((void*)&bandwidth, sizeof(bandwidth), 1, fid);
+	fwrite((void*)&duration, sizeof(duration), 1, fid);
 	fwrite((void*)getSignal(), sizeof(*p_sig), size/sizeof(*p_sig),fid);
+	fclose(fid);
+	// printf("Channels = %d\n", channels);
+	// printf("Records = %d\n", records);
+	// printf("Samples = %d\n", length);
+	// printf("Fsample = %f\n", fs);
+	// printf("Fcenter = %f\n", fc);
+}
+
+void SignalGenerator::load()
+{
+	FILE* fid;
+	fid = fopen("./results/data/signal.dat", "wb");
+	fread((void*)&channels, sizeof(channels), 1, fid);
+	fread((void*)&records, sizeof(records), 1, fid);
+	fread((void*)&length, sizeof(length), 1, fid);
+	fread((void*)&fs, sizeof(fs), 1, fid);
+	allocateMemory();
+	fread((void*)getSignal(), sizeof(*p_sig), size/sizeof(*p_sig),fid);
+	fclose(fid);
+
 	printf("Channels = %d\n", channels);
 	printf("Records = %d\n", records);
 	printf("Samples = %d\n", length);
 	printf("Fsample = %f\n", fs);
+	printf("Fcenter = %f\n", fc);
 
 }
 

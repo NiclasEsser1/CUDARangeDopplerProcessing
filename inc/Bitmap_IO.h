@@ -12,8 +12,8 @@ public:
 
 	Bitmap_IO( int w, int h, int c ) {
 		image = new char[ w * h * c/8];
-		header.filesz = sizeof( bmpHeader ) + sizeof( bmpInfo ) + ( w * h * c / 8) + 2 + 1024;
-		header.bmp_offset = sizeof( bmpHeader ) + sizeof( bmpInfo ) + 2 + 1024;
+		header.filesz = sizeof( bmpHeader ) + sizeof( bmpInfo ) + ( w * h * c / 8);
+		header.bmp_offset = sizeof( bmpHeader ) + sizeof( bmpInfo );
 		info.header_sz = sizeof( bmpInfo );
 		info.width = w;
 		info.height = h;
@@ -23,36 +23,40 @@ public:
 		info.bmp_bytesz = w * h * c/8;
 		info.hres = 2835;
 		info.vres = 2835;
-		info.ncolors = 0;
+		info.ncolors = 1;
 		info.nimpcolors = 0;
 	}
 
 	bool Save( const char* filename ) {
+		char head[2] = {'B', 'M'};
+		unsigned char bmppad[3] = {0,0,0};
 		if( image == NULL ) {
 			std::cerr << "Image unitialized" << std::endl;
 			return false;
 		}
 
-		std::ofstream file( filename, std::ios::out | std::ios::binary );
+		// long total =  2+sizeof(bmpHeader)+sizeof(bmpInfo)+Width() * Height() * ColorDepth()/8+ Height()*((4-(Width()*3)%4)%4);
+		// printf("\n\n____________\n");
+		// printf("Size of head: %d\n", 2);
+		// printf("Size of header: %ld\n", sizeof(bmpHeader));
+		// printf("Size of info: %ld\n", sizeof(bmpInfo));
+		// printf("Size of imagesize: %d\n", Width() * Height() * ColorDepth()/8);
+		// printf("Size of padding: %d\n",(4-(Width()*3)%4)%4);
+		// printf("total size: %ld\n", total);
+		// printf("\n____________\n\n");
 
-		file.write( "BM", 2 );
-		file.write( (char*)( &header ), sizeof( bmpHeader ) );
-		file.write( (char*)( &info ), sizeof( bmpInfo ) );
-		long total =  sizeof(bmpHeader)+sizeof(bmpInfo)+Width() * Height() * ColorDepth()/8;
-
-		char rgba[ 4 ];
-		for( int i = 0; i < 256; ++i ) {
-			rgba[ 0 ] = i;
-			rgba[ 1 ] = i;
-			rgba[ 2 ] = i;
-			rgba[ 3 ] = 0;
-
-			file.write( rgba, 4 );
+		FILE* fid = fopen(filename, "wb");
+		fwrite(head, sizeof(char), 2, fid);
+		fwrite(&header, sizeof( bmpHeader ), 1, fid);
+		fwrite(&info, sizeof( bmpInfo ), 1, fid);
+		for(int i = 0; i < Height(); i++)
+		{
+			fwrite(&bmppad, sizeof(char), (4-(Width()*3)%4)%4, fid);
+			fwrite(&image[Width()*i*3], sizeof(char)* ColorDepth()/8, Width(), fid);
 		}
 
-		file.write( image, Width() * Height() * ColorDepth()/8);
 
-		file.close();
+		fclose(fid);
 
 		return true;
 	}

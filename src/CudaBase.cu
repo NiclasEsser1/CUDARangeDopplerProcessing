@@ -98,6 +98,31 @@ void CudaBase::absolute(cufftComplex* idata, float* odata, int width, int height
 	//printf("done\n");
 }
 
+void CudaBase::hermitianTranspose(cufftComplex* odata, int width, int height, cufftComplex* idata)
+{
+	int tx = 32;
+	int ty = 32;
+	int bx = width/tx+1;
+	int by = height/ty+1;
+	dim3 blockSize(tx,ty);
+	dim3 gridSize(bx,by);
+	//printf("Transposing buffer... ");
+	if(idata == NULL)
+	{
+		CudaVector<cufftComplex>* temp = new CudaVector<cufftComplex>(device, width*height);
+		CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), odata, temp->getSize(), cudaMemcpyDeviceToDevice));
+		hermetianTransposeGlobalKernel<<<gridSize, blockSize>>>(temp->getDevPtr(), odata, width, height);
+		temp->resize(0);
+		delete(temp);
+	}
+	else
+	{
+		hermetianTransposeGlobalKernel<<<gridSize, blockSize>>>(idata, odata, width, height);
+	}
+	//CUDA_CHECK(cudaDeviceSynchronize());
+	//printf("done\n");
+}
+
 template <typename T>
 void CudaBase::transpose(T* odata, int width, int height, T* idata)
 {
@@ -156,24 +181,51 @@ template void CudaBase::transposeShared<cufftComplex>(cufftComplex*, int, int, c
 
 
 
+// template <typename T>
+// T CudaBase::max(T* idata, int width, int height)
+// {
+// 	int tx = 32;
+// 	int ty = 32;
+// 	int bx = width/(2*tx);
+// 	int by = height/(2*ty);
+// 	float max_val = 0;
+// 	dim3 blockSize(tx,ty);
+// 	dim3 gridSize(bx,by);
+//
+// 	CudaVector<T>* temp = new CudaVector<T>(device, width*height);
+// 	CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), idata, temp->getSize(), cudaMemcpyDeviceToDevice));
+// 	maxKernel<T><<<gridSize, blockSize>>>(temp->getDevPtr(), width, height);
+// 	CUDA_CHECK(cudaDeviceSynchronize());
+//
+// 	temp->save("temp.dat", width, height);
+// 	CUDA_CHECK(cudaMemcpy(&max_val, temp->getDevPtr(0), sizeof(T), cudaMemcpyDeviceToHost));
+// 	temp->resize(0);
+// 	delete(temp);
+// 	return max_val;
+// }
+// template float CudaBase::max<float>(float*, int, int);
+// template int CudaBase::max<int>(int*, int, int);
+// template char CudaBase::max<char>(char*, int, int);
+// template double CudaBase::max<double>(double*, int, int);
+
 template <typename T>
 T CudaBase::max(T* idata, int width, int height)
 {
-	int tx = 32;
-	int ty = 32;
-	int bx = width/tx+1;
-	int by = height/ty+1;
+	int count = width*height;
+	int tx = MAX_NOF_THREADS;
+	int bx = count/tx;
 	float max_val = 0;
-	dim3 blockSize(tx,ty);
-	dim3 gridSize(bx,by);
+	dim3 blockSize(tx);
+	dim3 gridSize(bx);
 
-	CudaVector<T>* temp = new CudaVector<T>(device, width*height);
+	CudaVector<T>* temp = new CudaVector<T>(device, count);
 	CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), idata, temp->getSize(), cudaMemcpyDeviceToDevice));
 
-	maxKernel<T><<<gridSize, blockSize>>>(temp->getDevPtr(), width, height);
-	//CUDA_CHECK(cudaDeviceSynchronize());
+	maxKernel<T><<<gridSize, blockSize>>>(temp->getDevPtr(), count);
+	CUDA_CHECK(cudaDeviceSynchronize());
 
-	CUDA_CHECK(cudaMemcpy(&max_val, temp->getDevPtr(), sizeof(T), cudaMemcpyDeviceToHost));
+	temp->save("temp.dat", width, height);
+	CUDA_CHECK(cudaMemcpy(&max_val, temp->getDevPtr(0), sizeof(T), cudaMemcpyDeviceToHost));
 	temp->resize(0);
 	delete(temp);
 	return max_val;
@@ -188,21 +240,20 @@ template double CudaBase::max<double>(double*, int, int);
 template <typename T>
 T CudaBase::min(T* idata, int width, int height)
 {
-	int tx = 32;
-	int ty = 32;
-	int bx = width/tx+1;
-	int by = height/ty+1;
+	int count = width*height;
+	int tx = MAX_NOF_THREADS;
+	int bx = count/tx;
 	float min_val = 0;
-	dim3 blockSize(tx,ty);
-	dim3 gridSize(bx,by);
+	dim3 blockSize(tx);
+	dim3 gridSize(bx);
 
-	CudaVector<T>* temp = new CudaVector<T>(device, width*height);
+	CudaVector<T>* temp = new CudaVector<T>(device, count);
 	CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), idata, temp->getSize(), cudaMemcpyDeviceToDevice));
 
-	minKernel<T><<<gridSize, blockSize>>>(temp->getDevPtr(), width, height);
-	// CUDA_CHECK(cudaDeviceSynchronize());
+	minKernel<T><<<gridSize, blockSize>>>(temp->getDevPtr(), count);
+	CUDA_CHECK(cudaDeviceSynchronize());
 
-	CUDA_CHECK(cudaMemcpy(&min_val, temp->getDevPtr(), sizeof(float), cudaMemcpyDeviceToHost));
+	CUDA_CHECK(cudaMemcpy(&min_val, temp->getDevPtr(0), sizeof(T), cudaMemcpyDeviceToHost));
 	temp->resize(0);
 	delete(temp);
 	return min_val;
@@ -214,54 +265,44 @@ template double CudaBase::min<double>(double*, int, int);
 
 
 
-void CudaBase::renderImage(float* idata, unsigned char* odata, int width, int height, color_t type)
+void CudaBase::mapColors(float* idata, unsigned char* odata, int width, int height, color_t type)
 {
 	int tx = 32;
 	int ty = 32;
 	int bx = width/tx+1;
 	int by = height/ty+1;
-	int max_v = max(idata, width, height);
+	float max_v = max(idata, width, height);
+	float min_v = min(idata, width, height);
 	dim3 blockSize(tx,ty);
 	dim3 gridSize(bx,by);
 	switch(type)
 	{
 		case JET:
-			colormapJet<<<gridSize,blockSize>>>(idata, odata, max_v, width, height);
+			colormapJet<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
 			// CUDA_CHECK(cudaDeviceSynchronize());
 			break;
-		case HOT:
-			colormapHot<<<gridSize,blockSize>>>(idata, odata, max_v, width, height);
+		case VIRIDIS:
+			colormapViridis<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
+			// CUDA_CHECK(cudaDeviceSynchronize());
+		case ACCENT:
+			colormapAccent<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
+			// CUDA_CHECK(cudaDeviceSynchronize());
+		case MAGMA:
+			colormapMagma<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
 			// CUDA_CHECK(cudaDeviceSynchronize());
 			break;
-		case COLD:
-			colormapCold<<<gridSize,blockSize>>>(idata, odata, max_v, width, height);
+		case INFERNO:
+			colormapInferno<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
 			// CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 		case BLUE:
-			colormapBlue<<<gridSize,blockSize>>>(idata, odata, max_v, width, height);
+			colormapBlue<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
 			// CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 	}
 }
 
-void CudaBase::startCudaEvent(cudaEvent_t* start, cudaEvent_t* stop)
-{
-	// printf("Hi\n");
-	CUDA_CHECK(cudaEventCreate(start));
-	CUDA_CHECK(cudaEventCreate(stop));
-	CUDA_CHECK(cudaEventRecord(*start, 0));
-}
 
-float CudaBase::stopCudaEvent(cudaEvent_t* start, cudaEvent_t* stop)
-{
-	CUDA_CHECK(cudaEventRecord(*stop, 0));
-	CUDA_CHECK(cudaEventSynchronize(*stop));
-	float elapsedTime;
-	CUDA_CHECK(cudaEventElapsedTime(&elapsedTime, *start, *stop));
-	// CUDA_CHECK(cudaEventDestroy(*stop));
-	// CUDA_CHECK(cudaEventDestroy(*start));
-	return elapsedTime;
-}
 /*
 *	FFT functions
 */

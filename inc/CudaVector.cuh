@@ -125,6 +125,21 @@ public:
             std::cout << "Buf[" << i << "] = " << cpu_buf[i] << std::endl;
         }
     }
+    __host__
+    void save(const char* filename = "vector.dat", unsigned width = 1, unsigned height = 1, unsigned depth = 1)
+    {
+        T* cpu_buf = (T*)malloc(m_bSize);
+        CUDA_CHECK(cudaMemcpy(cpu_buf, m_bValues, m_bSize, cudaMemcpyDeviceToHost));
+        char dir[100];
+        sprintf(dir, "results/data/%s", filename);
+        FILE* fid = fopen(dir, "wb");
+        fwrite(&depth, sizeof(unsigned), 1, fid);
+        fwrite(&height, sizeof(unsigned), 1, fid);
+        fwrite(&width, sizeof(unsigned), 1, fid);
+        fwrite(&eleSize, sizeof(unsigned), 1, fid);
+        fwrite(cpu_buf, sizeof(T), m_bSize, fid);
+        fclose(fid);
+    }
 };
 
 #endif

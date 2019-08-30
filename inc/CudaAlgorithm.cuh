@@ -25,7 +25,7 @@ public:
     void freeMemory();
     bool initDeviceEnv();
     /* Algorithms */
-    void rangeDopplerAlgorithm(float* idata, char* odata, winType type, numKind kind);
+    void rangeDopplerAlgorithm(float* idata, char* odata, winType type, numKind kind, color_t colormap = JET);
 
     /* SETTER */
     void setWidth(int val){x_size = val;}
