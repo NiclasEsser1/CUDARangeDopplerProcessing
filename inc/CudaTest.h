@@ -41,7 +41,7 @@ public:
         testCode success = TEST_SUCCED;
         SignalGenerator signal(1000, 100, 10, x_size, y_size);
         signal.noisySinus();
-        signal.save();
+        signal.save("noisy_sinus.dat");
         success = validate_max(signal.getSignal(), x_size, y_size);
         success = validate_min(signal.getSignal(), x_size, y_size);
         // success = validate_renderJet(signal.getSignal(), x_size, y_size);
@@ -73,13 +73,16 @@ public:
     {
         int x_size = object->getWidth();
         int y_size = object->getHeight();
+        float fsample = 100000000;
+        float fcenter = 6250000;
+        float amplitude = 10;
         float bandwith = 12000000;
         float duration = 0.0001;
         float fdoppler = 5000;
         testCode success = TEST_SUCCED;
-        SignalGenerator signal(100000000, 6250000, 10, x_size, y_size);
+        SignalGenerator signal(fsample, fcenter, amplitude, x_size, y_size);
         signal.sweep(bandwith, duration, fdoppler);
-        signal.save(bandwith, duration);
+        signal.save("sweep.dat",bandwith, duration);
         success = validate_rangeDoppler(signal.getSignal(), x_size, y_size);
         if(success == TEST_SUCCED)
             return true;
@@ -111,21 +114,48 @@ protected:
         Bitmap_IO image_cplx(x_size/2+1, y_size, object->getColorDepth()*8);
         Bitmap_IO image_real(x_size/2+1, y_size, object->getColorDepth()*8);
 
-        printf("\n\nTesting rangeDopplerAlgorithm(complex) function... \n");
+        printf("\n\nTesting rangeDopplerMap(complex) function... \n");
         if(object->initDeviceEnv())
         {
-            object->rangeDopplerAlgorithm(idata, image_cplx.GetImagePtr(),HAMMING, COMPLEX, INFERNO);
+            object->rangeDopplerMap(idata, image_cplx.GetImagePtr(),HAMMING, COMPLEX, JET);
             object->saveVector(object->charBuffer, "./results/data/processed_cplx.dat");
-            image_cplx.Save("./results/img/range_doppler_map_complex.bmp");
+            image_cplx.Save("./results/img/colormap_examples/rdm_jet_complex.bmp");
             object->freeMemory();
         }
-        sleep(2);
-        printf("\n\nTesting rangeDopplerAlgorithm(real) function... \n");
+        sleep(1);
+        printf("\n\nTesting rangeDopplerMap(real) function... \n");
         if(object->initDeviceEnv())
         {
-            object->rangeDopplerAlgorithm(idata, image_real.GetImagePtr(), HAMMING, REAL, MAGMA);
+            object->rangeDopplerMap(idata, image_real.GetImagePtr(), HAMMING, REAL, BLUE);
             object->saveVector(object->charBuffer, "results/data/processed_real.dat");
-            image_real.Save("./results/img/range_doppler_map_real.bmp");
+            image_real.Save("./results/img/colormap_examples/rdm_blue_real.bmp");
+            object->freeMemory();
+        }
+        sleep(1);
+        printf("\n\nTesting rangeDopplerMap(real) function... \n");
+        if(object->initDeviceEnv())
+        {
+            object->rangeDopplerMap(idata, image_real.GetImagePtr(), HAMMING, REAL, VIRIDIS);
+            object->saveVector(object->charBuffer, "results/data/processed_real.dat");
+            image_real.Save("./results/img/colormap_examples/rdm_viridis_real.bmp");
+            object->freeMemory();
+        }
+        sleep(1);
+        printf("\n\nTesting rangeDopplerMap(real) function... \n");
+        if(object->initDeviceEnv())
+        {
+            object->rangeDopplerMap(idata, image_real.GetImagePtr(), HAMMING, REAL, MAGMA);
+            object->saveVector(object->charBuffer, "results/data/processed_real.dat");
+            image_real.Save("./results/img/colormap_examples/rdm_magma_real.bmp");
+            object->freeMemory();
+        }
+        sleep(1);
+        printf("\n\nTesting rangeDopplerMap(real) function... \n");
+        if(object->initDeviceEnv())
+        {
+            object->rangeDopplerMap(idata, image_real.GetImagePtr(), HAMMING, REAL, INFERNO);
+            object->saveVector(object->charBuffer, "results/data/processed_real.dat");
+            image_real.Save("./results/img/colormap_examples/rdm_inferno_real.bmp");
             object->freeMemory();
         }
         return TEST_SUCCED;

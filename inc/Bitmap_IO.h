@@ -49,7 +49,7 @@ public:
 		fwrite(head, sizeof(char), 2, fid);
 		fwrite(&header, sizeof( bmpHeader ), 1, fid);
 		fwrite(&info, sizeof( bmpInfo ), 1, fid);
-		for(int i = 0; i < Height(); i++)
+		for(int i = Height()-1; i >= 0; i--)
 		{
 			fwrite(&bmppad, sizeof(char), (4-(Width()*3)%4)%4, fid);
 			fwrite(&image[Width()*i*3], sizeof(char)* ColorDepth()/8, Width(), fid);

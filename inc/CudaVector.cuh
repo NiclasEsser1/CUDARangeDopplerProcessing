@@ -69,16 +69,16 @@ public:
         if(cudaFree(m_bValues)  == cudaSuccess)
         {
             m_bValues = ptr;
-            if(size)
-                printf("Resizing cuda vector...\n");
             if(device->checkMemory(size, print))
             {
                 if(size != 0 && print)
+                {
+                    printf("Resizing cuda vector...\n");
                     printf("Allocating memory: %.4f MBytes\n", (float)m_bSize/(1024*1024));
-
+                }
                 CUDA_CHECK(cudaMalloc(&m_bValues, m_bSize ));
                 CUDA_CHECK(cudaMemset(m_bValues, 0, m_bSize));
-                device->checkMemory(size);
+                // device->checkMemory(size);
             }
             else
             {

@@ -26,14 +26,7 @@ CudaBase::~CudaBase()
 
 
 
-void CudaBase::setWindow(float* idata, int width, winType type, numKind kind)
-{
-	win_type = type;
-	win_kind = kind;
-	win_len = width;
-	calculateWindowTaps(idata);
-}
-void CudaBase::calculateWindowTaps(float* idata)
+void CudaBase::setWindow(float* idata, int win_len, winType type)
 {
 	int tx = MAX_NOF_THREADS;
 	int bx = win_len / MAX_NOF_THREADS + 1;
@@ -41,7 +34,7 @@ void CudaBase::calculateWindowTaps(float* idata)
 	dim3 blockSize(tx);
 	dim3 gridSize(bx);
 
-	switch (win_type)
+	switch (type)
 	{
 		case HAMMING:
 			//printf("Calculate hamming window... ");
@@ -217,7 +210,6 @@ T CudaBase::max(T* idata, int width, int height)
 	float max_val = 0;
 	dim3 blockSize(tx);
 	dim3 gridSize(bx);
-
 	CudaVector<T>* temp = new CudaVector<T>(device, count);
 	CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), idata, temp->getSize(), cudaMemcpyDeviceToDevice));
 
@@ -271,10 +263,12 @@ void CudaBase::mapColors(float* idata, unsigned char* odata, int width, int heig
 	int ty = 32;
 	int bx = width/tx+1;
 	int by = height/ty+1;
+	CUDA_CHECK(cudaDeviceSynchronize());
 	float max_v = max(idata, width, height);
 	float min_v = min(idata, width, height);
 	dim3 blockSize(tx,ty);
 	dim3 gridSize(bx,by);
+
 	switch(type)
 	{
 		case JET:
@@ -374,7 +368,7 @@ void CudaBase::hilbertTransform(float* idata, cufftComplex* odata, int n, int ba
 
 
 
-void CudaBase::printWindowTaps(float* idata)
+void CudaBase::printWindowTaps(float* idata, int win_len)
 {
 	float* help = (float*)malloc(win_len*sizeof(float));
 	CUDA_CHECK(cudaMemcpy(help, idata, win_len*sizeof(float), cudaMemcpyDeviceToHost));

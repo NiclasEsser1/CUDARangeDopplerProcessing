@@ -15,7 +15,6 @@
 
 
 void testClasses();
-void kernelPerformanceTest();
 
 int main(int argc, char** argv)
 {

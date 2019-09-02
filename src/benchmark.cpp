@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 					printf("\n\n________________\nRun (%d/%d) \n",i,ITERATIONS);
 
 				start = clock();
-				cu_base.setWindow(cu_algo.getWindowBuffer(), cu_algo.getWindowSize(), HAMMING, REAL);
+				cu_base.setWindow(cu_algo.getWindowBuffer(), cu_algo.getWindowSize(), HAMMING);
 				cudaDeviceSynchronize();
 				end = clock();
 				timing[0] += ((float)(end-start) + 1) * 1000 / (float)CLOCKS_PER_SEC;

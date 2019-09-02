@@ -1,4 +1,5 @@
 #include "SignalGenerator.h"
+#include <string>
 #include <stdio.h>      /* printf, scanf, NULL */
 #include <stdlib.h>     /* malloc, free, rand */
 #include <math.h>       /* sin */
@@ -27,7 +28,7 @@ void SignalGenerator::allocateMemory()
 {
 	p_sig = (float*)malloc(size);
 	CHECK_ALLOCATION(p_sig, __LINE__, __FILE__);
-	printf("Allocated memory for signal: %lf MBytes\n", (float)size/(1024*1024));
+	// printf("Allocated memory for signal: %lf MBytes\n", (float)size/(1024*1024));
 error:
 	return;
 }
@@ -68,7 +69,7 @@ double SignalGenerator::whiteNoiseSample(float snr)
 
 }// end AWGN_generator()
 
-void SignalGenerator::sweep(float bandwidth, float duration, float fdoppler, bool noise)
+void SignalGenerator::sweep(float bandwidth, float duration, float fdoppler, bool noise, int runs)
 {
 	allocateMemory();
 	float f, n = 0, snr = 2;
@@ -77,23 +78,16 @@ void SignalGenerator::sweep(float bandwidth, float duration, float fdoppler, boo
 	float fstart = fc - bandwidth/2;
 	float fstop = fc + bandwidth/2;
 	int i, j;
-	if(noise)
-	{
-		printf("Insert signal to noise ratio: ");
-		scanf("%f", &snr);
-	}
-	printf("Generating sweep... \n");
+	// printf("Generating sweep... \n");
 	for (j = 0; j < records; j++)
 	{
-		f = fstart + fdoppler*j;
+		f = fstart + fdoppler*(j+runs*records);
 		for (i = 0; i < length; i++)
 		{
 			f += fstep;
 			if(noise)
 				n = whiteNoiseSample(snr);
 			p_sig[i + j * length] = (float)amplitude*sin(2*PI_F*f*i/fs) + n;
-			// if(i == length -1)
-			// 	printf("End: %f; Fstop: %f, fstep: %f; tstep: %f \n", f, fstop, fstep, tstep);
 		}
 	}
 }
@@ -176,11 +170,12 @@ void SignalGenerator::printSignal()
 	}
 }
 
-void SignalGenerator::save(float bandwidth, float duration)
+void SignalGenerator::save(std::string filename, float bandwidth, float duration)
 {
 	int ele_size = sizeof(float);
 	FILE* fid;
-	fid = fopen("./results/data/signal.dat", "wb");
+	std::string dir = "./results/data/" + filename;
+	fid = fopen(dir.c_str(), "wb");
 	fwrite((void*)&channels, sizeof(channels), 1, fid);
 	fwrite((void*)&records, sizeof(records), 1, fid);
 	fwrite((void*)&length, sizeof(length), 1, fid);
@@ -191,13 +186,8 @@ void SignalGenerator::save(float bandwidth, float duration)
 	fwrite((void*)&duration, sizeof(duration), 1, fid);
 	fwrite((void*)getSignal(), sizeof(*p_sig), size/sizeof(*p_sig),fid);
 	fclose(fid);
-	// printf("Channels = %d\n", channels);
-	// printf("Records = %d\n", records);
-	// printf("Samples = %d\n", length);
-	// printf("Fsample = %f\n", fs);
-	// printf("Fcenter = %f\n", fc);
 }
-
+// TODO: accept a directory
 void SignalGenerator::load()
 {
 	FILE* fid;
@@ -209,13 +199,6 @@ void SignalGenerator::load()
 	allocateMemory();
 	fread((void*)getSignal(), sizeof(*p_sig), size/sizeof(*p_sig),fid);
 	fclose(fid);
-
-	printf("Channels = %d\n", channels);
-	printf("Records = %d\n", records);
-	printf("Samples = %d\n", length);
-	printf("Fsample = %f\n", fs);
-	printf("Fcenter = %f\n", fc);
-
 }
 
 float* SignalGenerator::getSignal(int pos)

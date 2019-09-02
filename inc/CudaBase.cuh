@@ -22,6 +22,8 @@ typedef enum { JET, VIRIDIS, ACCENT, MAGMA, INFERNO, BLUE} color_t;
 
 class CudaBase
 {
+private:
+	CudaGPU* device;
 public:
 	CudaBase(CudaGPU* device);
 	~CudaBase();
@@ -30,7 +32,6 @@ public:
     void r2c1dFFT(cufftComplex *odata, int n, int batch, cufftReal* idata = NULL );
     void c2c1dInverseFFT(cufftComplex* idata, int n, int batch);
     void c2c1dFFT(cufftComplex* idata, int n, int batch);
-	void calculateWindowTaps(float* idata);
 	void mapColors(float* idata, unsigned char* odata, int width, int height, color_t type = JET);
 	void hermitianTranspose(cufftComplex* odata, int width, int height, cufftComplex* idata = NULL);
 	template <typename T> void transpose(T* odata, int width, int height, T* idata = NULL);
@@ -40,17 +41,13 @@ public:
 	template <typename T> T min(T* idata, int width, int height);
 
 	void setDevice(CudaGPU* val){device = val;}
-    void setWindow(float* idata, int width, winType type = HAMMING, numKind kind = REAL);
+    void setWindow(float* idata, int width, winType type = HAMMING);
 
 	CudaGPU* getDevice(){return device;}
 
-    void printWindowTaps(float* idata);
+    void printWindowTaps(float* idata, int win_len);
 
-private:
-	CudaGPU* device;
-    winType win_type;
-	numKind win_kind;
-	int win_len;
+
 protected:
 
 	void r2cManyFFT(float* idata, cufftComplex* odata, int* nfft, int rank);

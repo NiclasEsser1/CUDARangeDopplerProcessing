@@ -12,14 +12,20 @@ NVCC=nvcc
 
 LIBS=-lstdc++ -lcuda -lcudart -lcufft -lrt -lm
 
-_CSRC =main.cpp SignalGenerator.cpp CudaGPU.cu CudaBase.cu CudaAlgorithm.cu CudaKernels.cu
-CSRC=$(patsubst %,$(SRC)%,$(_CSRC))
-
 _CDEPS=SignalGenerator.h Bitmap_IO.h CudaTest.h CudaGPU.cuh CudaBase.cuh CudaAlgorithm.cuh CudaKernels.cuh CudaVector.cuh
 CDEPS=$(patsubst %,$(IDIR1)%,$(_CDEPS))
 
-_OBJ=main.o SignalGenerator.o CudaGPU.o CudaBase.o CudaAlgorithm.o CudaKernels.o
-OBJ=$(patsubst %,$(ODIR)%,$(_OBJ))
+_OBJ1=test.o SignalGenerator.o CudaGPU.o CudaBase.o CudaAlgorithm.o CudaKernels.o
+OBJ1=$(patsubst %,$(ODIR)%,$(_OBJ1))
+
+_OBJ2=benchmark.o SignalGenerator.o CudaGPU.o CudaBase.o CudaAlgorithm.o CudaKernels.o
+OBJ2=$(patsubst %,$(ODIR)%,$(_OBJ2))
+
+_OBJ3=streaming_example.o SignalGenerator.o CudaGPU.o CudaBase.o CudaAlgorithm.o CudaKernels.o
+OBJ3=$(patsubst %,$(ODIR)%,$(_OBJ3))
+
+
+
 
 $(ODIR)%.o: $(SDIR)%.cpp $(CDEPS)
 	$(NVCC) -I$(IDIR1) -I$(IDIR2) -I$(IDIR3) -c $< -o $@
@@ -27,7 +33,17 @@ $(ODIR)%.o: $(SDIR)%.cpp $(CDEPS)
 $(ODIR)%.o: $(SDIR)%.cu $(CDEPS)
 	$(NVCC) -I$(IDIR1) -I$(IDIR2) -I$(IDIR3) -c $< -o $@
 
-$(BDIR)run: $(OBJ)
-	$(NVCC) -L$(LDIR1) -L$(LDIR2) $(OBJ) -o $@ $(LIBS)
+all: $(BDIR)test $(BDIR)benchmark $(BDIR)streaming_example
+
+$(BDIR)test: $(OBJ1)
+	$(NVCC) -L$(LDIR1) -L$(LDIR2) $(OBJ1) -o $@ $(LIBS)
+
+$(BDIR)benchmark: $(OBJ2)
+	$(NVCC) -L$(LDIR1) -L$(LDIR2) $(OBJ2) -o $@ $(LIBS)
+
+$(BDIR)streaming_example: $(OBJ3)
+	$(NVCC) -L$(LDIR1) -L$(LDIR2) $(OBJ3) -o $@ $(LIBS)
+
+
 clean:
-	rm -f $(ODIR)*.o $(BDIR)run
+	rm -f $(ODIR)*.o $(BDIR)test $(BDIR)benchmark $(BDIR)streaming_example

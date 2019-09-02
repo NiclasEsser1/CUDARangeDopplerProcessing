@@ -1,13 +1,15 @@
 # Don't track content of these folders
 obj/
 bin/
-img/
 
 
 # Compiled source #
 ###################
-*.bmp
-bin/run
+
+bin/benchmark
+bin/streaming_example
+bin/test
 obj/*.o
 *.csv
 *.dat
+*.bmp

@@ -25,7 +25,10 @@ public:
     void freeMemory();
     bool initDeviceEnv();
     /* Algorithms */
-    void rangeDopplerAlgorithm(float* idata, char* odata, winType type, numKind kind, color_t colormap = JET);
+    void realtimeRangeMap(float* idata, char* odata, int nof_incoming_records, winType type, color_t colormap = JET);
+    void rangeMap(float* idata, char* odata, winType type, numKind kind, color_t colormap);
+    void rangeDopplerMap(float* idata, char* odata, winType type, numKind kind, color_t colormap);
+    void realtimeRangeDopplerMap(float* idata, char* odata, int nof_incoming_records, winType type, color_t colormap = JET);
 
     /* SETTER */
     void setWidth(int val){x_size = val;}
@@ -51,9 +54,7 @@ public:
 	CudaVector<unsigned char>* charBuffer;
 
     /* Templates */
-    template<typename T> void freeCudaVector(CudaVector<T>* vec){
-    	if (vec != NULL){vec->resize(0);}
-    }
+    template<typename T> void freeCudaVector(CudaVector<T>* vec){if (vec != NULL){vec->resize(0);}}
     template<typename T> void saveVector(CudaVector<T>* vec, const char* filename = "results/data/processed.dat")
     {
         FILE* fid;

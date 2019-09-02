@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 
 class SignalGenerator
 {
@@ -15,7 +16,7 @@ public:
 	void allocateMemory();
 	void freeBuffer(float* buf);
 	double whiteNoiseSample(float snr = 2);
-	void sweep(float bandwidth, float duration, float fdoppler = 0, bool noise = false);
+	void sweep(float bandwidth, float duration, float fdoppler = 0, bool noise = false, int runs = 1);
 	void noisySinus(float snr = 1);
 	void sinus();
 	void cosinus();
@@ -30,7 +31,7 @@ public:
 	void setLength(int val);
 	void setSignal(float* signal);
 	void printSignal();
-	void save(float bandwidth = 0, float duration = 0);
+	void save(std::string filename = "signal.dat", float bandwidth = 0, float duration = 0);
 	void load();
 
 private:
