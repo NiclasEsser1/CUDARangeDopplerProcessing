@@ -1,8 +1,3 @@
-# Don't track content of these folders
-obj/
-bin/
-
-
 # Compiled source #
 ###################
 

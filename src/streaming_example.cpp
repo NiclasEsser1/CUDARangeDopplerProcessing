@@ -84,7 +84,7 @@ int main()
             // If maps are processed
             if(nof_recieved_records >= img_height && nof_recieved_records%img_height==0)
             {
-                sprintf(image_dir, "./results/img/realtime/CH%d_%d_rangedoppler.bmp", ch, image_num);
+                sprintf(image_dir, "./results/img/streaming/CH%d_%d_rangedoppler.bmp", ch, image_num);
                 images[ch]->Save(image_dir);
                 runs = 0;
                 if(ch == nof_channels-1)
