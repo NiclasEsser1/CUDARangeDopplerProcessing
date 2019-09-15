@@ -1,8 +1,5 @@
 #include "CudaGPU.cuh"
-#include <cuda.h>
-#include <cuda_runtime_api.h>
-#include <stdio.h>
-#include <stdlib.h>
+
 
 CudaGPU::CudaGPU(int devNum)
 {

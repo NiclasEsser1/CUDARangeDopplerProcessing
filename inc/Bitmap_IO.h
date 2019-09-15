@@ -34,29 +34,27 @@ public:
 			std::cerr << "Image unitialized" << std::endl;
 			return false;
 		}
-
-		// long total =  2+sizeof(bmpHeader)+sizeof(bmpInfo)+Width() * Height() * ColorDepth()/8+ Height()*((4-(Width()*3)%4)%4);
-		// printf("\n\n____________\n");
-		// printf("Size of head: %d\n", 2);
-		// printf("Size of header: %ld\n", sizeof(bmpHeader));
-		// printf("Size of info: %ld\n", sizeof(bmpInfo));
-		// printf("Size of imagesize: %d\n", Width() * Height() * ColorDepth()/8);
-		// printf("Size of padding: %d\n",(4-(Width()*3)%4)%4);
-		// printf("total size: %ld\n", total);
-		// printf("\n____________\n\n");
+		// printf("DIR: %s\n", filename);
 
 		FILE* fid = fopen(filename, "wb");
-		fwrite(head, sizeof(char), 2, fid);
-		fwrite(&header, sizeof( bmpHeader ), 1, fid);
-		fwrite(&info, sizeof( bmpInfo ), 1, fid);
-		for(int i = Height()-1; i >= 0; i--)
+		if(fid != NULL)
 		{
-			fwrite(&bmppad, sizeof(char), (4-(Width()*3)%4)%4, fid);
-			fwrite(&image[Width()*i*3], sizeof(char)* ColorDepth()/8, Width(), fid);
+			fwrite(head, sizeof(char), 2, fid);
+			fwrite(&header, sizeof( bmpHeader ), 1, fid);
+			fwrite(&info, sizeof( bmpInfo ), 1, fid);
+			for(int i = Height()-1; i >= 0; i--)
+			{
+				fwrite(&bmppad, sizeof(char), (4-(Width()*3)%4)%4, fid);
+				fwrite(&image[Width()*i*3], sizeof(char)* ColorDepth()/8, Width(), fid);
+			}
+
+
+			fclose(fid);
 		}
-
-
-		fclose(fid);
+		else
+		{
+			printf("Could not open file: %s\n", filename);
+		}
 
 		return true;
 	}
@@ -123,7 +121,7 @@ public:
 		//std::memcpy(image, input, info.width*info.height);
 	}
 
-	char* image;
+
 
 private:
 	struct  bmpHeader {
@@ -146,7 +144,7 @@ private:
 		uint32_t ncolors;
 		uint32_t nimpcolors;
 	};
-
+	char* image;
 	bmpHeader header;
 	bmpInfo info;
 

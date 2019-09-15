@@ -1,6 +1,11 @@
 #ifndef CUDAALGORITHM_H_
 #define CUDAALGORITHM_H_
 
+#include <iostream>
+#include <cuda_runtime.h>
+#include <stdio.h>
+#include <unistd.h>
+
 #include "CudaGPU.cuh"
 #include "CudaBase.cuh"
 #include "CudaVector.cuh"

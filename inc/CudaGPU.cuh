@@ -1,6 +1,7 @@
 #ifndef CUDAGPU_H_
 #define CUDAGPU_H_
 
+#include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <stdio.h>
 #include <stdlib.h>

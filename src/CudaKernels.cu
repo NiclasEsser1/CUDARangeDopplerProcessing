@@ -1,8 +1,5 @@
 #include "CudaKernels.cuh"
-#include "CudaBase.cuh"
-#include "Colormaps.cuh"
-#include <cuda_runtime_api.h>
-#include <math.h>
+
 
 
 __global__ void windowHamming(float* idata, int length)
@@ -169,9 +166,9 @@ __global__ void colormapJet(float* idata, unsigned char* odata, float max, float
 
 	if(tidx < width && tidy < height)
 	{
-		odata[(tidx + width*tidy) * 3 + 0] = (unsigned char)255*colormap_jet[colormap_index][0];
-		odata[(tidx + width*tidy) * 3 + 1] = (unsigned char)255*colormap_jet[colormap_index][1];
-		odata[(tidx + width*tidy) * 3 + 2] = (unsigned char)255*colormap_jet[colormap_index][2];
+		odata[(tidx + width * tidy) * 3 + 0] = (unsigned char)255*colormap_jet[colormap_index][0];
+		odata[(tidx + width * tidy) * 3 + 1] = (unsigned char)255*colormap_jet[colormap_index][1];
+		odata[(tidx + width * tidy) * 3 + 2] = (unsigned char)255*colormap_jet[colormap_index][2];
 	}
 }
 

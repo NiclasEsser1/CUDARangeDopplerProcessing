@@ -1,14 +1,4 @@
 #include "CudaAlgorithm.cuh"
-#include "CudaGPU.cuh"
-#include "CudaBase.cuh"
-#include "CudaVector.cuh"
-
-#include <iostream>
-#include <cuda_runtime.h>
-#include <stdio.h>
-#include <unistd.h>
-
-
 
 CudaAlgorithm::CudaAlgorithm(CudaBase* obj_base, int width, int height, int depth, int c_depth)
 {
@@ -35,12 +25,12 @@ void CudaAlgorithm::freeMemory()
 	// If memory is allocated, free it
 	if(allocated)
 	{
-		printf("Free device memory\n");
-		freeCudaVector(floatBuffer);
-		freeCudaVector(windowBuffer);
-		freeCudaVector(complexBuffer);
-		freeCudaVector(charBuffer);
+		// freeCudaVector(floatBuffer);
+		// freeCudaVector(windowBuffer);
+		// freeCudaVector(complexBuffer);
+		// freeCudaVector(charBuffer);
         allocated = false;
+        printf("Free device memory\n");
 	}
 }
 
@@ -234,9 +224,7 @@ void CudaAlgorithm::realtimeRangeDopplerMap(float* idata, char* odata, int nof_i
         base->hermitianTranspose(complexBuffer->getDevPtr(position[channel]), y_size, nfft);
         base->absolute(complexBuffer->getDevPtr(position[channel]), floatBuffer->getDevPtr(position[channel]), nfft, y_size);
         base->mapColors(floatBuffer->getDevPtr(position[channel]), charBuffer->getDevPtr(position[channel]),nfft, y_size, colormap);
-        // CUDA_CHECK(cudaMemcpy(&odata[0], charBuffer->getDevPtr(position[channel]), nfft * y_size * color_depth, cudaMemcpyDeviceToHost));
-        CUDA_CHECK(cudaMemcpy(&odata[0], charBuffer->getDevPtr(position[channel]+nfft * y_size * color_depth/2), nfft * y_size * color_depth/2, cudaMemcpyDeviceToHost));
-        CUDA_CHECK(cudaMemcpy(&odata[nfft * y_size * color_depth/2], charBuffer->getDevPtr(position[channel]), nfft * y_size * color_depth/2, cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaMemcpy(&odata[0], charBuffer->getDevPtr(position[channel]), nfft * y_size * color_depth, cudaMemcpyDeviceToHost));
         // Reset variables because images are processed
         if(channel == z_size-1)
         {

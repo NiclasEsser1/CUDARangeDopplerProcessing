@@ -1,11 +1,14 @@
 #ifndef CUDABASE_H_
 #define CUDABASE_H_
 
+#include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <cufft.h>
 #include <stdio.h>
-#include <stdlib.h>     /* exit, EXIT_FAILURE */
 #include <string>
+#include <stdlib.h>
+#include <unistd.h>
+#include <iostream>
 
 #include "CudaGPU.cuh"
 #include "CudaVector.cuh"

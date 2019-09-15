@@ -12,7 +12,7 @@ NVCC=nvcc
 
 LIBS=-lstdc++ -lcuda -lcudart -lcufft -lrt -lm
 
-_CDEPS=SignalGenerator.h Bitmap_IO.h CudaTest.h CudaGPU.cuh CudaBase.cuh CudaAlgorithm.cuh CudaKernels.cuh CudaVector.cuh
+_CDEPS=SignalGenerator.h Bitmap_IO.h Socket.h TCPConfig.h CudaTest.h CudaGPU.cuh CudaBase.cuh CudaAlgorithm.cuh CudaKernels.cuh CudaVector.cuh
 CDEPS=$(patsubst %,$(IDIR1)%,$(_CDEPS))
 
 _OBJ1=test.o SignalGenerator.o CudaGPU.o CudaBase.o CudaAlgorithm.o CudaKernels.o
@@ -21,7 +21,7 @@ OBJ1=$(patsubst %,$(ODIR)%,$(_OBJ1))
 _OBJ2=benchmark.o SignalGenerator.o CudaGPU.o CudaBase.o CudaAlgorithm.o CudaKernels.o
 OBJ2=$(patsubst %,$(ODIR)%,$(_OBJ2))
 
-_OBJ3=streaming_example.o SignalGenerator.o CudaGPU.o CudaBase.o CudaAlgorithm.o CudaKernels.o
+_OBJ3=streaming_example.o SignalGenerator.o Socket.o CudaGPU.o CudaBase.o CudaAlgorithm.o CudaKernels.o
 OBJ3=$(patsubst %,$(ODIR)%,$(_OBJ3))
 
 

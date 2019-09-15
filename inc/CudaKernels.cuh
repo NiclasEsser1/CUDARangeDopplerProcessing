@@ -2,9 +2,11 @@
 #define CUDAKERNELS_H_
 
 #include <cuda_runtime_api.h>
-
+#include <math.h>
 #include "CudaBase.cuh"
-#include "device_launch_parameters.h"
+#include "Colormaps.cuh"
+#include "CudaBase.cuh"
+//#include "device_launch_parameters.h"
 #define PI_F   3.14159f
 
 __global__ void windowHamming(float* idata, int length);

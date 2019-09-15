@@ -131,14 +131,22 @@ public:
         T* cpu_buf = (T*)malloc(m_bSize);
         CUDA_CHECK(cudaMemcpy(cpu_buf, m_bValues, m_bSize, cudaMemcpyDeviceToHost));
         char dir[100];
-        sprintf(dir, "results/data/%s", filename);
+        sprintf(dir, "./results/data/%s", filename);
+        printf("DIR: %s", dir);
         FILE* fid = fopen(dir, "wb");
-        fwrite(&depth, sizeof(unsigned), 1, fid);
-        fwrite(&height, sizeof(unsigned), 1, fid);
-        fwrite(&width, sizeof(unsigned), 1, fid);
-        fwrite(&eleSize, sizeof(unsigned), 1, fid);
-        fwrite(cpu_buf, sizeof(T), m_bSize, fid);
-        fclose(fid);
+        if(fid != NULL)
+    	{
+            fwrite(&depth, sizeof(unsigned), 1, fid);
+            fwrite(&height, sizeof(unsigned), 1, fid);
+            fwrite(&width, sizeof(unsigned), 1, fid);
+            fwrite(&eleSize, sizeof(unsigned), 1, fid);
+            fwrite(cpu_buf, sizeof(T), m_bSize, fid);
+            fclose(fid);
+        }
+        else
+        {
+            printf("Could not open file: %s\n", dir);
+        }
     }
 };
 

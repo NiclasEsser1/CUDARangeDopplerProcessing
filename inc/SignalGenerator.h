@@ -1,12 +1,15 @@
 #ifndef SIGNALGENERATOR_H_
 #define SIGNALGENERATOR_H_
 
+#include <string>
+#include <stdio.h>      /* printf, scanf, NULL */
+#include <stdlib.h>     /* malloc, free, rand */
+#include <math.h>       /* sin */
+
 #define CHECK_ALLOCATION(ptr, line, file){if(ptr == NULL){printf("Allocation failed in line %d file: %s \n", line, file);goto error;}}
 #define PI_F   3.14159f
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string>
+
 
 class SignalGenerator
 {

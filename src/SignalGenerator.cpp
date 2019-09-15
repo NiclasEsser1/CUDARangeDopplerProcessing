@@ -1,10 +1,4 @@
 #include "SignalGenerator.h"
-#include <string>
-#include <stdio.h>      /* printf, scanf, NULL */
-#include <stdlib.h>     /* malloc, free, rand */
-#include <math.h>       /* sin */
-
-
 
 SignalGenerator::SignalGenerator(float fsample, float fcenter, float amp, int x, int y, int z)
 {
@@ -173,32 +167,44 @@ void SignalGenerator::printSignal()
 void SignalGenerator::save(std::string filename, float bandwidth, float duration)
 {
 	int ele_size = sizeof(float);
-	FILE* fid;
 	std::string dir = "./results/data/" + filename;
-	fid = fopen(dir.c_str(), "wb");
-	fwrite((void*)&channels, sizeof(channels), 1, fid);
-	fwrite((void*)&records, sizeof(records), 1, fid);
-	fwrite((void*)&length, sizeof(length), 1, fid);
-	fwrite((void*)&ele_size, sizeof(ele_size), 1, fid);
-	fwrite((void*)&fs, sizeof(fs), 1, fid);
-	fwrite((void*)&fc, sizeof(fc), 1, fid);
-	fwrite((void*)&bandwidth, sizeof(bandwidth), 1, fid);
-	fwrite((void*)&duration, sizeof(duration), 1, fid);
-	fwrite((void*)getSignal(), sizeof(*p_sig), size/sizeof(*p_sig),fid);
-	fclose(fid);
+	FILE* fid = fopen(dir.c_str(), "wb");
+	if(fid != NULL)
+	{
+		fwrite((void*)&channels, sizeof(channels), 1, fid);
+		fwrite((void*)&records, sizeof(records), 1, fid);
+		fwrite((void*)&length, sizeof(length), 1, fid);
+		fwrite((void*)&ele_size, sizeof(ele_size), 1, fid);
+		fwrite((void*)&fs, sizeof(fs), 1, fid);
+		fwrite((void*)&fc, sizeof(fc), 1, fid);
+		fwrite((void*)&bandwidth, sizeof(bandwidth), 1, fid);
+		fwrite((void*)&duration, sizeof(duration), 1, fid);
+		fwrite((void*)getSignal(), sizeof(*p_sig), size/sizeof(*p_sig),fid);
+		fclose(fid);
+	}
+	else
+	{
+		printf("Could not open file\n");
+	}
 }
 // TODO: accept a directory
 void SignalGenerator::load()
 {
-	FILE* fid;
-	fid = fopen("./results/data/signal.dat", "wb");
-	fread((void*)&channels, sizeof(channels), 1, fid);
-	fread((void*)&records, sizeof(records), 1, fid);
-	fread((void*)&length, sizeof(length), 1, fid);
-	fread((void*)&fs, sizeof(fs), 1, fid);
-	allocateMemory();
-	fread((void*)getSignal(), sizeof(*p_sig), size/sizeof(*p_sig),fid);
-	fclose(fid);
+	FILE* fid = fopen("./results/data/signal.dat", "wb");
+	if(fid != NULL)
+	{
+		fread((void*)&channels, sizeof(channels), 1, fid);
+		fread((void*)&records, sizeof(records), 1, fid);
+		fread((void*)&length, sizeof(length), 1, fid);
+		fread((void*)&fs, sizeof(fs), 1, fid);
+		allocateMemory();
+		fread((void*)getSignal(), sizeof(*p_sig), size/sizeof(*p_sig),fid);
+		fclose(fid);
+	}
+	else
+	{
+		printf("Could not open file\n");
+	}
 }
 
 float* SignalGenerator::getSignal(int pos)

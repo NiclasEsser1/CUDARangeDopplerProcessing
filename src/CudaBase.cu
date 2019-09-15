@@ -1,13 +1,4 @@
 #include "CudaBase.cuh"
-#include "CudaGPU.cuh"
-#include "CudaKernels.cuh"
-
-#include <cuda.h>
-#include <cuda_runtime_api.h>
-#include <cufft.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <iostream>
 
 /**
 _________
@@ -173,34 +164,6 @@ template void CudaBase::transposeShared<float>(float*, int, int, float*);
 template void CudaBase::transposeShared<cufftComplex>(cufftComplex*, int, int, cufftComplex*);
 
 
-
-// template <typename T>
-// T CudaBase::max(T* idata, int width, int height)
-// {
-// 	int tx = 32;
-// 	int ty = 32;
-// 	int bx = width/(2*tx);
-// 	int by = height/(2*ty);
-// 	float max_val = 0;
-// 	dim3 blockSize(tx,ty);
-// 	dim3 gridSize(bx,by);
-//
-// 	CudaVector<T>* temp = new CudaVector<T>(device, width*height);
-// 	CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), idata, temp->getSize(), cudaMemcpyDeviceToDevice));
-// 	maxKernel<T><<<gridSize, blockSize>>>(temp->getDevPtr(), width, height);
-// 	CUDA_CHECK(cudaDeviceSynchronize());
-//
-// 	temp->save("temp.dat", width, height);
-// 	CUDA_CHECK(cudaMemcpy(&max_val, temp->getDevPtr(0), sizeof(T), cudaMemcpyDeviceToHost));
-// 	temp->resize(0);
-// 	delete(temp);
-// 	return max_val;
-// }
-// template float CudaBase::max<float>(float*, int, int);
-// template int CudaBase::max<int>(int*, int, int);
-// template char CudaBase::max<char>(char*, int, int);
-// template double CudaBase::max<double>(double*, int, int);
-
 template <typename T>
 T CudaBase::max(T* idata, int width, int height)
 {
@@ -210,13 +173,13 @@ T CudaBase::max(T* idata, int width, int height)
 	float max_val = 0;
 	dim3 blockSize(tx);
 	dim3 gridSize(bx);
+
 	CudaVector<T>* temp = new CudaVector<T>(device, count);
 	CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), idata, temp->getSize(), cudaMemcpyDeviceToDevice));
 
 	maxKernel<T><<<gridSize, blockSize>>>(temp->getDevPtr(), count);
 	CUDA_CHECK(cudaDeviceSynchronize());
 
-	temp->save("temp.dat", width, height);
 	CUDA_CHECK(cudaMemcpy(&max_val, temp->getDevPtr(0), sizeof(T), cudaMemcpyDeviceToHost));
 	temp->resize(0);
 	delete(temp);
