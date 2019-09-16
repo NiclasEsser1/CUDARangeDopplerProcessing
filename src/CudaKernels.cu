@@ -285,3 +285,43 @@ template __global__ void minKernel<float>(float*, int);
 template __global__ void minKernel<int>(int*, int);
 template __global__ void minKernel<char>(char*, int);
 template __global__ void minKernel<double>(double*, int);
+
+template <typename T>
+__global__ void fftshift1d(T* data, int n)
+{
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	if(tidx < n/2)
+	{
+		// Save the first value
+        T regTemp = data[tidx];
+
+        // Swap the first element
+        data[tidx] = (T) data[tidx + (n / 2)];
+
+        // Swap the second one
+        data[tidx + (n / 2)] = (T) regTemp;
+	}
+}
+template __global__ void fftshift1d<cufftComplex>(cufftComplex*, int);
+template __global__ void fftshift1d<float>(float*, int);
+
+template <typename T>
+__global__ void fftshift2d(T* data, int n, int batch)
+{
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int tidy = blockIdx.y * blockDim.y;
+
+	if(tidx < n/2 && tidy < batch)
+	{
+		// Save the first value
+        T regTemp = data[tidx + tidy * n];
+
+        // Swap the first element
+        data[tidx + tidy * n] = (T) data[tidx + tidy * n + (n / 2)];
+
+        // Swap the second one
+        data[tidx + tidy * n + (n / 2)] = (T) regTemp;
+	}
+}
+template __global__ void fftshift2d<cufftComplex>(cufftComplex*, int, int);
+template __global__ void fftshift2d<float>(float*, int, int);

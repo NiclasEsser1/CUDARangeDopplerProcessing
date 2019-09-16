@@ -10,7 +10,7 @@ BDIR=bin/
 CPP=g++
 NVCC=nvcc
 
-LIBS=-lstdc++ -lcuda -lcudart -lcufft -lrt -lm
+LIBS=-lstdc++ -lcuda -lcudart -lcufft -lnvjpeg -lrt -lm
 
 _CDEPS=SignalGenerator.h Bitmap_IO.h Socket.h TCPConfig.h CudaTest.h CudaGPU.cuh CudaBase.cuh CudaAlgorithm.cuh CudaKernels.cuh CudaVector.cuh
 CDEPS=$(patsubst %,$(IDIR1)%,$(_CDEPS))

@@ -13,9 +13,9 @@ int main(int argc, char* argv[])
 {
     // Acquisition parameters (simulated)
     int nof_samples = 1024;             // samples per record
-    int nof_records = 100000;             // total amount of records
+    int nof_records = 65538;             // total amount of records
     int nof_records_packet = 256;       // records to be transmitted per run
-    unsigned nof_channels = 4;               // amount of operating channels
+    unsigned nof_channels = 2;               // amount of operating channels
     unsigned nof_recieved_records = 0;       //
     int recieved_all_records = 0;       // flag for while loop
     int runs = 1;                       // counts runs per image
@@ -100,8 +100,8 @@ int main(int argc, char* argv[])
             {
                 if(socket.isActive())
                     socket.writeToServer(images[ch]->GetImagePtr(), img_size);
-                sprintf(image_dir, "/home/niclas/SoftwareProjekte/Cuda/PerformanceComparsion/results/img/streaming/CH%d_%d_rangedoppler.bmp", ch, image_num);
-                images[ch]->Save(image_dir);
+                // sprintf(image_dir, "/home/niclas/SoftwareProjekte/Cuda/PerformanceComparsion/results/img/streaming/CH%d_%d_rangedoppler.bmp", ch, image_num);
+                // images[ch]->Save(image_dir);
                 runs = 0;
                 if(ch == nof_channels-1)
                 {

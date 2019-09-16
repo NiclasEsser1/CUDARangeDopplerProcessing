@@ -25,7 +25,6 @@ __global__ void transposeSharedKernel(float* idata, float* odata, int height);
 __global__ void transposeSharedKernel(cufftComplex* idata, cufftComplex* odata, int height);
 
 __global__ void absoluteKernel(cufftComplex* idata, float* odata, int width, int height);
-//template <typename T>__global__ void getMaxValueKernel(T* idata, int width, int height);
 
 __global__ void colormapJet(float* idata, unsigned char* odata, float max, float min, int width, int height);
 __global__ void colormapViridis(float* idata, unsigned char* odata, float max, float min, int width, int height);
@@ -35,10 +34,10 @@ __global__ void colormapInferno(float* idata, unsigned char* odata, float max, f
 __global__ void colormapBlue(float* idata, unsigned char* odata, float max, float min, int width, int height);
 
 template <typename T>__global__ void maxKernel(T* idata, int count);
-// template <typename T>__global__ void maxKernel(T* idata, int width, int height);
 template <typename T>__global__ void minKernel(T* idata, int count);
 
-
+template <typename T>__global__ void fftshift2d(T* data, int n, int batch);
+template <typename T>__global__ void fftshift1d(T* data, int n);
 
 
 #endif

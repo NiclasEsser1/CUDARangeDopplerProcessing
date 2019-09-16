@@ -107,6 +107,58 @@ void CudaBase::hermitianTranspose(cufftComplex* odata, int width, int height, cu
 	//printf("done\n");
 }
 
+void CudaBase::fftshift(cufftComplex* data, int n, int batch)
+{
+	int tx = MAX_NOF_THREADS;
+	int bx = tx/n+1;
+	int by = batch;
+	dim3 blockSize(tx);
+	dim3 gridSize(bx,by);
+	if(batch > 1)
+	{
+		fftshift2d<<<gridSize, blockSize>>>(data, n, batch);
+	}
+	else
+	{
+		fftshift1d<<<gridSize, blockSize>>>(data, n);
+	}
+}
+
+void CudaBase::encodeBmpToJpeg(unsigned char* idata, unsigned char* odata, int width, int height)
+{
+	nvjpegHandle_t nv_handle;
+	nvjpegEncoderState_t nv_enc_state;
+	nvjpegEncoderParams_t nv_enc_params;
+	cudaStream_t stream;
+	nvjpegImage_t source;
+
+	source.channel[0] = idata;
+	source.pitch[0] = width*3;
+
+	CUDA_CHECK(cudaStreamCreate(&stream));
+
+	// initialize nvjpeg structures
+	CUDA_CHECK_NVJPEG(nvjpegCreateSimple(&nv_handle));
+	CUDA_CHECK_NVJPEG(nvjpegEncoderStateCreate(nv_handle, &nv_enc_state, stream));
+	CUDA_CHECK_NVJPEG(nvjpegEncoderParamsCreate(nv_handle, &nv_enc_params, stream));
+	//CUDA_CHECK_NVJPEG(nvjpegEncoderParamsSetSamplingFactors(nv_enc_params, NVJPEG_CSS_444, stream));
+
+	// Compress image
+	CUDA_CHECK_NVJPEG(nvjpegEncodeImage(nv_handle, nv_enc_state, nv_enc_params, &source, NVJPEG_INPUT_RGB, width, height, stream));
+	CUDA_CHECK(cudaStreamSynchronize(stream));
+	CUDA_CHECK(cudaDeviceSynchronize());
+
+	// get compressed stream size
+	size_t length;
+	CUDA_CHECK_NVJPEG(nvjpegEncodeRetrieveBitstream(nv_handle, nv_enc_state, NULL, &length, stream));
+
+
+	CUDA_CHECK(cudaStreamSynchronize(stream));
+	CUDA_CHECK_NVJPEG(nvjpegEncodeRetrieveBitstream(nv_handle, nv_enc_state, odata, &length, 0));
+	printf("Length is: %ld \n", length);
+	CUDA_CHECK(cudaDeviceSynchronize());
+}
+
 template <typename T>
 void CudaBase::transpose(T* odata, int width, int height, T* idata)
 {
