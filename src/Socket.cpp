@@ -17,7 +17,7 @@ Socket::~Socket()
 
 int Socket::open()
 {
-    char hello[] = "From Client:    Hello Server";
+    char msg[] = "Client:transmitter";
     sockfd = socket(TCPConfig::TCPfamily, TCPConfig::TCPtype, TCPConfig::TCPprotocol);
     if(sockfd < 0)
     {
@@ -29,17 +29,18 @@ int Socket::open()
         printf("Could not connect to server\n");
         return 0;
     }
+    printf("Connecting to TCP server\n");
     active = true;
+    send(msg, sizeof(msg)-1); // "-1" is added to prevent sending the termination charachter '\0'
+    wait();
     return 1;
-    //send(sockfd, hello, sizeof(hello),MSG_OOB);
 }
 template <typename T>
-void Socket::writeToServer(T* ptr, size_t count)
+void Socket::send(T* ptr, int count)
 {
-    //printf("Writing to server... size: %ld\n", sizeof(T)*count);
-    size_t result = 0;
-    size_t _size = count * sizeof(T);
-    if(active)
+    printf("Writing to server... \n");
+    int result = 0;
+    int _size = count;
     do
     {
         result = write(sockfd, (void*)ptr, _size);
@@ -56,13 +57,36 @@ void Socket::writeToServer(T* ptr, size_t count)
     }
     while(_size > 0);
 }
-template void Socket::writeToServer<tcp_header>(tcp_header*, size_t count);
-template void Socket::writeToServer<int>(int*, size_t count);
-template void Socket::writeToServer<long unsigned>(long unsigned*, size_t count);
-template void Socket::writeToServer<float>(float*, size_t count);
-template void Socket::writeToServer<char>(char*, size_t count);
+template void Socket::send<tcp_header>(tcp_header*, int count);
+template void Socket::send<int>(int*, int count);
+template void Socket::send<long unsigned>(long unsigned*, int count);
+template void Socket::send<float>(float*, int count);
+template void Socket::send<char>(char*, int count);
+template void Socket::send<unsigned char>(unsigned char*, int count);
 
+void Socket::wait()
+{
+    int bytes = 0;
+    char msg[2];
+    do {
+        bytes += read(sockfd, msg, 2);
+    } while(msg == "OK");
+    printf("Server send OK\n");
+    //return;
+}
 void Socket::close()
 {
+    printf("Closing connection to server\n");
+    shutdown(sockfd, 2);
+}
 
+void Socket::printHeader(tcp_header header)
+{
+    printf("_________\nHeader\n__________\n");
+    printf("total_size: %u\n",ntohl(header.total_size));
+    printf("rec_records: %u\n",ntohl(header.rec_records));
+    printf("nof_channels: %u\n",ntohl(header.nof_channels));
+    printf("img_height: %u\n",ntohl(header.img_height));
+    printf("img_width: %u\n",ntohl(header.img_width));
+    printf("format: %u\n",ntohl(header.format));
 }

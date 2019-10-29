@@ -13,17 +13,18 @@
 
 #include "TCPConfig.h"
 
-using namespace std;
-
 typedef struct{
     unsigned total_size;
+    unsigned total_nof_records;
     unsigned rec_records;
     unsigned nof_channels;
+    unsigned current_channel;
     unsigned img_height;
     unsigned img_width;
-    unsigned color_depth;
+    unsigned format;
 }tcp_header;
 
+using namespace std;
 class Socket : public TCPConfig
 {
 public:
@@ -31,8 +32,10 @@ public:
     ~Socket();
     int open();
     void close();
-    template <typename T>void writeToServer(T* ptr, size_t count);
+    template <typename T>void send(T* ptr, int count);
+    void wait();
     bool isActive(){return active;}
+    void printHeader(tcp_header header);
 
 private:
     int sockfd = 0;

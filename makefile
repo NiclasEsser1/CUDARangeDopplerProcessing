@@ -3,6 +3,7 @@ IDIR2=/usr/include/
 IDIR3=/usr/local/cuda-10.1/include/
 LDIR1=/usr/lib/
 LDIR2=/usr/lib/x86_64-linux-gnu
+LDIR3=/usr/local/lib
 SDIR=src/
 ODIR=obj/
 BDIR=bin/
@@ -10,7 +11,7 @@ BDIR=bin/
 CPP=g++
 NVCC=nvcc
 
-LIBS=-lstdc++ -lcuda -lcudart -lcufft -lnvjpeg -lrt -lm
+LIBS=-lstdc++ -lcuda -lcudart -lcufft -lnvjpeg -lrt -lm -lgpujpeg
 
 _CDEPS=SignalGenerator.h Bitmap_IO.h Socket.h TCPConfig.h CudaTest.h CudaGPU.cuh CudaBase.cuh CudaAlgorithm.cuh CudaKernels.cuh CudaVector.cuh
 CDEPS=$(patsubst %,$(IDIR1)%,$(_CDEPS))
@@ -36,13 +37,13 @@ $(ODIR)%.o: $(SDIR)%.cu $(CDEPS)
 all: $(BDIR)test $(BDIR)benchmark $(BDIR)streaming_example
 
 $(BDIR)test: $(OBJ1)
-	$(NVCC) -L$(LDIR1) -L$(LDIR2) $(OBJ1) -o $@ $(LIBS)
+	$(NVCC) -L$(LDIR1) -L$(LDIR2) -L$(LDIR3) $(OBJ1) -o $@ $(LIBS)
 
 $(BDIR)benchmark: $(OBJ2)
-	$(NVCC) -L$(LDIR1) -L$(LDIR2) $(OBJ2) -o $@ $(LIBS)
+	$(NVCC) -L$(LDIR1) -L$(LDIR2) -L$(LDIR3) $(OBJ2) -o $@ $(LIBS)
 
 $(BDIR)streaming_example: $(OBJ3)
-	$(NVCC) -L$(LDIR1) -L$(LDIR2) $(OBJ3) -o $@ $(LIBS)
+	$(NVCC) -L$(LDIR1) -L$(LDIR2) -L$(LDIR3) $(OBJ3) -o $@ $(LIBS)
 
 
 clean:

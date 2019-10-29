@@ -8,14 +8,15 @@
 #include <stdio.h>      /* puts, printf */
 #include <time.h>       /* time_t, struct tm, time, localtime */
 #include <string>
+#include <cuda_profiler_api.h>
 
 int main(int argc, char* argv[])
 {
     // Acquisition parameters (simulated)
-    int nof_samples = 1024;             // samples per record
-    int nof_records = 65538;             // total amount of records
-    int nof_records_packet = 256;       // records to be transmitted per run
-    unsigned nof_channels = 2;               // amount of operating channels
+    int nof_samples = 2048;             // samples per record
+    int nof_records = 8192;             // total amount of records
+    int nof_records_packet = 512;       // records to be transmitted per run
+    unsigned nof_channels = 3;               // amount of operating channels
     unsigned nof_recieved_records = 0;       //
     int recieved_all_records = 0;       // flag for while loop
     int runs = 1;                       // counts runs per image
@@ -24,17 +25,10 @@ int main(int argc, char* argv[])
     unsigned img_height = 512;              // pixel
     unsigned img_width = nof_samples/2+1;    // pixel
     unsigned img_color_depth = 3;
-    unsigned img_size = img_height * img_width * img_color_depth;
-
+	char image_dir[256];
     // Variables for TCP Streaminig
     Socket socket;
     tcp_header header;
-    header.total_size = htonl(img_size);
-    header.rec_records = htonl(nof_records);
-    header.nof_channels = htonl(nof_channels);
-    header.img_height = htonl(img_height);
-    header.img_width = htonl(img_width);
-    header.color_depth = htonl(img_color_depth);
 
     // Signal parameters
     float fsample = 100000000;          // Hz
@@ -45,7 +39,7 @@ int main(int argc, char* argv[])
     float fdoppler = 5000;              // Hz
 
     // Processing options
-    winType window = HAMMING;           // window function type
+    int window = HAMMING;           // window function type
     color_t colormap = JET;             // Colormap to choose
 
     // GPU setup
@@ -61,18 +55,15 @@ int main(int argc, char* argv[])
 
 
     // Initialize images for range doppler maps
-    int image_num = 0;                  // counter for filename
-    char image_dir[256];                // directory of images
-    Bitmap_IO** images;                 // multidimensional class pointer for bitmap images
+    uint8_t** images;             // pointer-pointer to image buffers
 
 
     // Allocate bitmap instances for each channel
-    images = (Bitmap_IO**)malloc(nof_channels*sizeof(Bitmap_IO*));
+    images = (uint8_t**)malloc(nof_channels*sizeof(uint8_t*));
     signals = (SignalGenerator**)malloc(nof_channels*sizeof(SignalGenerator*));
     for(int ch = 0; ch < nof_channels; ch++)
     {
-        // Instantiate bitmap images
-        images[ch] = new Bitmap_IO(img_width, img_height, algthm.getColorDepth()*8);
+        images[ch] = (uint8_t*) malloc(img_width*img_height);
         // Generate signals on CPU as simulated signal
         signals[ch] = new SignalGenerator(fsample, fcenter, amplitude,
             nof_samples, nof_records_packet, nof_channels);
@@ -81,43 +72,43 @@ int main(int argc, char* argv[])
     }
 
     // Setup an tcp socket server for Inter Process Communication between, back and front end
-    if(socket.open())
-        socket.writeToServer(&header, 1);
+    socket.open();
+    cudaProfilerStart();
     // Loop until all records are recieved
     while(!recieved_all_records)
     {
+        nof_recieved_records += nof_records_packet;
         // For each channel acquire and process data, (sequentiell)
         for(int ch = 0; ch < nof_channels; ch++)
         {
             // process data to range doppler maps
             signals[ch]->sweep(bw, time, fdoppler*ch, true, runs);
-            algthm.realtimeRangeDopplerMap(signals[ch]->getSignal(),
-                images[ch]->GetImagePtr(), nof_records_packet,
+            algthm.realtimeRangeMap(signals[ch]->getSignal(),images[ch],
+                nof_records_packet,
                 window, colormap);
             CUDA_CHECK(cudaDeviceSynchronize());
             // If maps are processed
-            if(nof_recieved_records >= img_height && nof_recieved_records%img_height==0)
+            if(nof_recieved_records % img_height == 0)
             {
                 if(socket.isActive())
-                    socket.writeToServer(images[ch]->GetImagePtr(), img_size);
-                // sprintf(image_dir, "/home/niclas/SoftwareProjekte/Cuda/PerformanceComparsion/results/img/streaming/CH%d_%d_rangedoppler.bmp", ch, image_num);
-                // images[ch]->Save(image_dir);
-                runs = 0;
-                if(ch == nof_channels-1)
                 {
-                    image_num++;
+                    algthm.make_tcp_header(&header, nof_recieved_records, nof_records, ch);
+                    socket.send(&header, sizeof(header));
+                    socket.wait();
+                    socket.send(images[ch], algthm.getImageSize());
+                    socket.wait();
                 }
+                runs = 0;
             }
         }
         runs++;
         if(nof_recieved_records >= nof_records)
             recieved_all_records = 1;
-        nof_recieved_records += nof_records_packet;
-
 
         if(nof_recieved_records%img_height == 0)
             printf("Records processed: %d/%d\n",nof_recieved_records, nof_records);
     }
-
+    cudaProfilerStop();
+    cudaDeviceReset();
     return 0;
 }

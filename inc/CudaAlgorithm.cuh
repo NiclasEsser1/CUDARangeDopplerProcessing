@@ -9,6 +9,9 @@
 #include "CudaGPU.cuh"
 #include "CudaBase.cuh"
 #include "CudaVector.cuh"
+#include "Socket.h"
+
+enum {BMP24, JPEG};
 
 class CudaAlgorithm
 {
@@ -19,21 +22,28 @@ private:
     int x_size;
     int y_size;
     int z_size;
+    int image_size; // Number of bytes of image
     int color_depth;
     double total_required_mem;
 	bool allocated;
 
+
 public:
+    /* Vector objects */ // TODO: make the vectors private
+	CudaVector<float>* floatBuffer;
+	CudaVector<float>* windowBuffer;
+	CudaVector<cufftComplex>* complexBuffer;
+	CudaVector<unsigned char>* charBuffer;
     /* Initialization functions */
     CudaAlgorithm(CudaBase* obj_base, int width = 1, int height = 1, int depth = 1, int c_depth = 3);
     ~CudaAlgorithm();
     void freeMemory();
     bool initDeviceEnv();
     /* Algorithms */
-    void realtimeRangeMap(float* idata, char* odata, int nof_incoming_records, winType type, color_t colormap = JET);
-    void rangeMap(float* idata, char* odata, winType type, numKind kind, color_t colormap);
-    void rangeDopplerMap(float* idata, char* odata, winType type, numKind kind, color_t colormap);
-    void realtimeRangeDopplerMap(float* idata, char* odata, int nof_incoming_records, winType type, color_t colormap = JET);
+    void realtimeRangeMap(float* idata, uint8_t* odata, int nof_incoming_records, int type, color_t colormap = JET);
+    void rangeMap(float* idata, char* odata, int type, numKind kind, color_t colormap);
+    void rangeDopplerMap(float* idata, char* odata, int type, numKind kind, color_t colormap);
+    void realtimeRangeDopplerMap(float* idata, unsigned char* odata, int nof_incoming_records, int type, color_t colormap = JET);
 
     /* SETTER */
     void setWidth(int val){x_size = val;}
@@ -51,13 +61,10 @@ public:
     int getWidth(){return x_size;}
     int getHeight(){return y_size;}
 	int getDepth(){return z_size;}
+    int getImageSize(){return image_size;}
 
-    /* Vector objects */
-	CudaVector<float>* floatBuffer;
-	CudaVector<float>* windowBuffer;
-	CudaVector<cufftComplex>* complexBuffer;
-	CudaVector<unsigned char>* charBuffer;
-
+    /* MAKER */
+    void make_tcp_header(tcp_header* header, int records_processed, int nof_records, int ch);
     /* Templates */
     template<typename T> void freeCudaVector(CudaVector<T>* vec){if (vec != NULL){vec->resize(0);}}
     template<typename T> void saveVector(CudaVector<T>* vec, const char* filename = "results/data/processed.dat")

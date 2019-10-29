@@ -1,5 +1,5 @@
 #include "CudaBase.cuh"
-
+//#include <libgpujpeg/gpujpeg.h>
 /**
 _________
 PUBLIC
@@ -15,9 +15,11 @@ CudaBase::~CudaBase()
 
 }
 
+/*
+* 	Windowing
+*/
 
-
-void CudaBase::setWindow(float* idata, int win_len, winType type)
+void CudaBase::setWindow(float* idata, int win_len, int type)
 {
 	int tx = MAX_NOF_THREADS;
 	int bx = win_len / MAX_NOF_THREADS + 1;
@@ -68,6 +70,9 @@ void CudaBase::window(T* idata, float* window, int width, int height)
 template void CudaBase::window<float>(float*, float*, int, int);
 template void CudaBase::window<cufftComplex>(cufftComplex*, float*, int, int);
 
+/*
+*	Mathematical opertaions
+*/
 void CudaBase::absolute(cufftComplex* idata, float* odata, int width, int height)
 {
 	int tx = MAX_NOF_THREADS;
@@ -84,14 +89,18 @@ void CudaBase::absolute(cufftComplex* idata, float* odata, int width, int height
 
 void CudaBase::hermitianTranspose(cufftComplex* odata, int width, int height, cufftComplex* idata)
 {
-	int tx = 32;
-	int ty = 32;
-	int bx = width/tx+1;
-	int by = height/ty+1;
+	int tx = TILE_DIM;
+	int ty = TILE_DIM;
+	int bx = width/tx;
+	int by = height/ty;
 	dim3 blockSize(tx,ty);
 	dim3 gridSize(bx,by);
-	//printf("Transposing buffer... ");
-	if(idata == NULL)
+	// If matrix is a square matrix
+	if(width == height)
+	{
+		hermetianTransposeSharedKernel<<<gridSize, blockSize>>>(odata);
+	}
+	else if(idata == NULL)
 	{
 		CudaVector<cufftComplex>* temp = new CudaVector<cufftComplex>(device, width*height);
 		CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), odata, temp->getSize(), cudaMemcpyDeviceToDevice));
@@ -103,64 +112,12 @@ void CudaBase::hermitianTranspose(cufftComplex* odata, int width, int height, cu
 	{
 		hermetianTransposeGlobalKernel<<<gridSize, blockSize>>>(idata, odata, width, height);
 	}
-	//CUDA_CHECK(cudaDeviceSynchronize());
+	CUDA_CHECK(cudaDeviceSynchronize());
 	//printf("done\n");
 }
 
-void CudaBase::fftshift(cufftComplex* data, int n, int batch)
-{
-	int tx = MAX_NOF_THREADS;
-	int bx = tx/n+1;
-	int by = batch;
-	dim3 blockSize(tx);
-	dim3 gridSize(bx,by);
-	if(batch > 1)
-	{
-		fftshift2d<<<gridSize, blockSize>>>(data, n, batch);
-	}
-	else
-	{
-		fftshift1d<<<gridSize, blockSize>>>(data, n);
-	}
-}
 
-void CudaBase::encodeBmpToJpeg(unsigned char* idata, unsigned char* odata, int width, int height)
-{
-	nvjpegHandle_t nv_handle;
-	nvjpegEncoderState_t nv_enc_state;
-	nvjpegEncoderParams_t nv_enc_params;
-	cudaStream_t stream;
-	nvjpegImage_t source;
-
-	source.channel[0] = idata;
-	source.pitch[0] = width*3;
-
-	CUDA_CHECK(cudaStreamCreate(&stream));
-
-	// initialize nvjpeg structures
-	CUDA_CHECK_NVJPEG(nvjpegCreateSimple(&nv_handle));
-	CUDA_CHECK_NVJPEG(nvjpegEncoderStateCreate(nv_handle, &nv_enc_state, stream));
-	CUDA_CHECK_NVJPEG(nvjpegEncoderParamsCreate(nv_handle, &nv_enc_params, stream));
-	//CUDA_CHECK_NVJPEG(nvjpegEncoderParamsSetSamplingFactors(nv_enc_params, NVJPEG_CSS_444, stream));
-
-	// Compress image
-	CUDA_CHECK_NVJPEG(nvjpegEncodeImage(nv_handle, nv_enc_state, nv_enc_params, &source, NVJPEG_INPUT_RGB, width, height, stream));
-	CUDA_CHECK(cudaStreamSynchronize(stream));
-	CUDA_CHECK(cudaDeviceSynchronize());
-
-	// get compressed stream size
-	size_t length;
-	CUDA_CHECK_NVJPEG(nvjpegEncodeRetrieveBitstream(nv_handle, nv_enc_state, NULL, &length, stream));
-
-
-	CUDA_CHECK(cudaStreamSynchronize(stream));
-	CUDA_CHECK_NVJPEG(nvjpegEncodeRetrieveBitstream(nv_handle, nv_enc_state, odata, &length, 0));
-	printf("Length is: %ld \n", length);
-	CUDA_CHECK(cudaDeviceSynchronize());
-}
-
-template <typename T>
-void CudaBase::transpose(T* odata, int width, int height, T* idata)
+template <typename T> void CudaBase::transpose(T* odata, int width, int height, T* idata)
 {
 	int tx = 32;
 	int ty = 32;
@@ -187,33 +144,38 @@ void CudaBase::transpose(T* odata, int width, int height, T* idata)
 template void CudaBase::transpose<float>(float*, int, int, float*);
 template void CudaBase::transpose<cufftComplex>(cufftComplex*, int, int, cufftComplex*);
 
-template <typename T>
-void CudaBase::transposeShared(T* odata, int width, int height, T* idata)
+
+template <typename T> void CudaBase::transposeShared(T* data, int width, int height)
 {
-	int tx = 32;
-	int ty = 32;
-	int bx = width/tx+1;
-	int by = height/ty+1;
+	int tx = TILE_DIM;
+	int ty = BLOCK_ROWS;
+	int bx = width/TILE_DIM;
+	int by = height/TILE_DIM;
 	dim3 blockSize(tx,ty);
 	dim3 gridSize(bx,by);
-	//printf("Transposing buffer... ");
-	if(idata == NULL)
+	transposeSharedKernel<<<gridSize, blockSize>>>(data);
+	CUDA_CHECK(cudaDeviceSynchronize());
+}
+template void CudaBase::transposeShared<float>(float*,int,int);
+// template void CudaBase::transposeShared<cufftComplex>(cufftComplex*, int, int, cufftComplex*);
+
+
+void CudaBase::fftshift(cufftComplex* data, int n, int batch)
+{
+	int tx = MAX_NOF_THREADS;
+	int bx = tx/n+1;
+	int by = batch;
+	dim3 blockSize(tx);
+	dim3 gridSize(bx,by);
+	if(batch > 1)
 	{
-		CudaVector<T>* temp = new CudaVector<T>(device, width*height);
-		CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), odata, temp->getSize(), cudaMemcpyDeviceToDevice));
-		transposeSharedKernel<<<gridSize, blockSize>>>(temp->getDevPtr(), odata, height);
-		temp->resize(0);
-		delete(temp);
+		fftshift2d<<<gridSize, blockSize>>>(data, n, batch);
 	}
 	else
 	{
-		transposeSharedKernel<<<gridSize, blockSize>>>(idata, odata, height);
+		fftshift1d<<<gridSize, blockSize>>>(data, n);
 	}
-	//CUDA_CHECK(cudaDeviceSynchronize());
-	//printf("done\n");
 }
-template void CudaBase::transposeShared<float>(float*, int, int, float*);
-template void CudaBase::transposeShared<cufftComplex>(cufftComplex*, int, int, cufftComplex*);
 
 
 template <typename T>
@@ -243,7 +205,6 @@ template char CudaBase::max<char>(char*, int, int);
 template double CudaBase::max<double>(double*, int, int);
 
 
-
 template <typename T>
 T CudaBase::min(T* idata, int width, int height)
 {
@@ -271,6 +232,98 @@ template char CudaBase::min<char>(char*, int, int);
 template double CudaBase::min<double>(double*, int, int);
 
 
+void CudaBase::findBlockSize(int* whichSize, int* num_el)
+{
+	const float pretty_big_number = 24.0f*1024.0f*1024.0f;
+	float ratio = float((*num_el))/pretty_big_number;
+	if(ratio > 0.8f)
+		(*whichSize) =  5;
+	else if(ratio > 0.6f)
+		(*whichSize) =  4;
+	else if(ratio > 0.4f)
+		(*whichSize) =  3;
+	else if(ratio > 0.2f)
+		(*whichSize) =  2;
+	else
+		(*whichSize) =  1;
+}
+
+
+void CudaBase::minMax(float* idata, float* odata, int num_els)
+{
+
+	int whichSize = -1;
+	findBlockSize(&whichSize,&num_els);
+
+	int block_size = powf(2,whichSize-1)*blockSize1;
+	int num_blocks = num_els/block_size;
+	int tail = num_els - num_blocks*block_size;
+	int start_adr = num_els - tail;
+
+	if(whichSize == 1)
+		find_min_max<blockSize1,threads><<< num_blocks, threads>>>(idata, odata);
+	else if(whichSize == 2)
+		find_min_max<blockSize1*2,threads><<< num_blocks, threads>>>(idata, odata);
+	else if(whichSize == 3)
+		find_min_max<blockSize1*4,threads><<< num_blocks, threads>>>(idata, odata);
+	else if(whichSize == 4)
+		find_min_max<blockSize1*8,threads><<< num_blocks, threads>>>(idata, odata);
+	else
+		find_min_max<blockSize1*16,threads><<< num_blocks, threads>>>(idata, odata);
+	find_min_max_dynamic<threads><<<1, threads>>>(idata, odata, num_els, start_adr, num_blocks);
+}
+/*
+*	Image processing
+*/
+void CudaBase::encodeBmpToJpeg(unsigned char* idata, uint8_t* odata, int* p_jpeg_size, int width, int height)
+{
+	static int image_num = -1;
+	char image_dir[256];
+	cudaStream_t stream;
+	uint8_t* image = NULL;
+
+
+	CUDA_CHECK(cudaStreamCreate(&stream));
+	image_num++;
+	struct gpujpeg_encoder_input encoder_input;
+	struct gpujpeg_parameters param;
+	struct gpujpeg_image_parameters param_image;
+	struct gpujpeg_encoder* encoder = gpujpeg_encoder_create(&stream);
+
+	sprintf(image_dir, "/home/niclas/SoftwareProjekte/Cuda/PerformanceComparsion/results/img/streaming/jpeg/CH%d_%d.jpg", image_num%4, image_num/4);
+	gpujpeg_set_default_parameters(&param);
+	param.quality = 80;
+	param.restart_interval = 16;
+	param.interleaved = 1;
+
+	gpujpeg_image_set_default_parameters(&param_image);
+	param_image.width = width;
+	param_image.height = height;
+	param_image.comp_count = 3;
+	param_image.color_space = GPUJPEG_RGB;
+	param_image.pixel_format = GPUJPEG_444_U8_P012;
+
+	// Use default sampling factors
+	gpujpeg_parameters_chroma_subsampling_422(&param);
+	if ( encoder == NULL )
+		encoder = gpujpeg_encoder_create(&stream);
+
+	gpujpeg_encoder_input_set_image(&encoder_input, idata);
+	gpujpeg_encoder_encode(encoder, &param, &param_image, &encoder_input, &image, p_jpeg_size);
+	gpujpeg_image_save_to_file(image_dir, image, *p_jpeg_size);
+	CUDA_CHECK(cudaStreamSynchronize(stream));
+
+	// odata = (uint8_t*) malloc(*p_jpeg_size);
+	if(odata != nullptr)
+		memcpy((void*)odata, (void*)image, *p_jpeg_size);
+	else
+		printf("Could not allocated memory for jpeg image\n");
+
+	CUDA_CHECK(cudaStreamDestroy(stream));
+	gpujpeg_image_destroy(image);
+	gpujpeg_encoder_destroy(encoder);
+}
+
 
 void CudaBase::mapColors(float* idata, unsigned char* odata, int width, int height, color_t type)
 {
@@ -278,9 +331,16 @@ void CudaBase::mapColors(float* idata, unsigned char* odata, int width, int heig
 	int ty = 32;
 	int bx = width/tx+1;
 	int by = height/ty+1;
-	CUDA_CHECK(cudaDeviceSynchronize());
-	float max_v = max(idata, width, height);
-	float min_v = min(idata, width, height);
+
+	float max_v;
+	float min_v;
+
+	CudaVector<float>* temp = new CudaVector<float>(device, width*height);
+	minMax(idata, temp->getDevPtr(), width*height);
+	cudaMemcpy(&min_v, temp->getDevPtr(0), sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(&max_v, temp->getDevPtr(1), sizeof(float), cudaMemcpyDeviceToHost);
+	temp->resize(0);
+	delete(temp);
 	dim3 blockSize(tx,ty);
 	dim3 gridSize(bx,by);
 

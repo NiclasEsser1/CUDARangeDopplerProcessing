@@ -11,7 +11,7 @@
 #include <cstring>
 #include <sys/types.h>
 
-#define TEST_CASES 8
+#define TEST_CASES 1
 
 
 void testClasses();
@@ -28,15 +28,15 @@ void testClasses()
 	CudaGPU device(0);
 
 
-	for(int i = 1; i < TEST_CASES; i++)
+	for(int i = 1; i <= TEST_CASES; i++)
 	{
 		CudaBase cu_base(&device);
 		CudaTest<CudaBase> test_base(&device, &cu_base);
-		test_base.testCudaBase(16*i, 16*i);
+		test_base.testCudaBase(2048, 1024);
 		cu_base.~CudaBase();
 	}
-	CudaBase cu_base(&device);
-	CudaAlgorithm cu_algo(&cu_base, 512, 512, 1, 3);
-	CudaTest<CudaAlgorithm> test_algo(&device, &cu_algo);
-	test_algo.testCudaAlgorithms();
+	// CudaBase cu_base(&device);
+	// CudaAlgorithm cu_algo(&cu_base, 512, 512, 1, 3);
+	// CudaTest<CudaAlgorithm> test_algo(&device, &cu_algo);
+	// test_algo.testCudaAlgorithms();
 }

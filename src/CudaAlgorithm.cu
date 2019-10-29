@@ -69,7 +69,20 @@ bool CudaAlgorithm::initDeviceEnv()
 
 }
 
-void CudaAlgorithm::rangeMap(float* idata, char* odata, winType type, numKind kind, color_t colormap)
+void CudaAlgorithm::make_tcp_header(tcp_header* header, int records_processed, int nof_records, int ch)
+{
+
+    header->total_size = htonl(image_size);
+    header->total_nof_records = htonl(nof_records);
+    header->rec_records = htonl(records_processed);
+    header->nof_channels = htonl(z_size);
+    header->current_channel = htonl(ch);
+    header->img_height = htonl(y_size);
+    header->img_width = htonl(x_size/2+1);
+    header->format = htonl(JPEG);
+}
+
+void CudaAlgorithm::rangeMap(float* idata, char* odata, int type, numKind kind, color_t colormap)
 {
     CUDA_CHECK(cudaMemcpy(floatBuffer->getDevPtr(), idata, x_size*y_size*sizeof(float), cudaMemcpyHostToDevice));
     complexBuffer->resize((x_size/2+1) * y_size);
@@ -99,7 +112,7 @@ void CudaAlgorithm::rangeMap(float* idata, char* odata, winType type, numKind ki
     CUDA_CHECK(cudaMemcpy(odata, charBuffer->getDevPtr(), charBuffer->getSize(), cudaMemcpyDeviceToHost));
 }
 
-void CudaAlgorithm::realtimeRangeMap(float* idata, char* odata, int nof_incoming_records, winType type, color_t colormap)
+void CudaAlgorithm::realtimeRangeMap(float* idata, uint8_t* odata, int nof_incoming_records, int type, color_t colormap)
 {
     // static variables for pipelining
     static int channel = 0;                                         // counts the current channel
@@ -130,7 +143,8 @@ void CudaAlgorithm::realtimeRangeMap(float* idata, char* odata, int nof_incoming
     {
         position[channel] = channel * nfft * y_size;
         base->mapColors(floatBuffer->getDevPtr(position[channel]), charBuffer->getDevPtr(position[channel]),nfft, y_size, colormap);
-        CUDA_CHECK(cudaMemcpy(&odata[0], charBuffer->getDevPtr(position[channel]), nfft * y_size * color_depth, cudaMemcpyDeviceToHost));
+        base->encodeBmpToJpeg((unsigned char*)charBuffer->getDevPtr(position[channel]), odata, &image_size, nfft, y_size);
+        //CUDA_CHECK(cudaMemcpy(&odata[0], charBuffer->getDevPtr(position[channel]), nfft * y_size * color_depth, cudaMemcpyDeviceToHost));
         CUDA_CHECK(cudaDeviceSynchronize());
         // Reset variables because images are processed
         if(channel == z_size-1)
@@ -153,7 +167,7 @@ void CudaAlgorithm::realtimeRangeMap(float* idata, char* odata, int nof_incoming
         channel++;
 }
 
-void CudaAlgorithm::rangeDopplerMap(float* idata, char* odata, winType type, numKind kind, color_t colormap)
+void CudaAlgorithm::rangeDopplerMap(float* idata, char* odata, int type, numKind kind, color_t colormap)
 {
     CUDA_CHECK(cudaMemcpy(floatBuffer->getDevPtr(), idata, x_size*y_size*sizeof(float), cudaMemcpyHostToDevice));
     complexBuffer->resize((x_size/2+1) * y_size);
@@ -180,7 +194,6 @@ void CudaAlgorithm::rangeDopplerMap(float* idata, char* odata, winType type, num
     floatBuffer->resize((x_size/2+1)*y_size);
     base->hermitianTranspose(complexBuffer->getDevPtr(), x_size/2+1, y_size);
     base->c2c1dFFT(complexBuffer->getDevPtr(), y_size, x_size/2+1);
-    // base->fftshift2d(complexBuffer->getDevPtr(), y_size, x_size/2+1);
     base->hermitianTranspose(complexBuffer->getDevPtr(), y_size, x_size/2+1);
     base->absolute(complexBuffer->getDevPtr(), floatBuffer->getDevPtr(), x_size/2+1, y_size);
     base->mapColors(floatBuffer->getDevPtr(), charBuffer->getDevPtr(), x_size/2+1, y_size, colormap);
@@ -190,7 +203,7 @@ void CudaAlgorithm::rangeDopplerMap(float* idata, char* odata, winType type, num
 
 
 // In realtime applications it is may required to pipeline the incoming data.
-void CudaAlgorithm::realtimeRangeDopplerMap(float* idata, char* odata, int nof_incoming_records, winType type, color_t colormap)
+void CudaAlgorithm::realtimeRangeDopplerMap(float* idata, unsigned char* odata, int nof_incoming_records, int type, color_t colormap)
 {
     // static variables for pipelining
     static int channel = 0;                                         // counts the current channel
@@ -211,7 +224,6 @@ void CudaAlgorithm::realtimeRangeDopplerMap(float* idata, char* odata, int nof_i
     CUDA_CHECK(cudaMemcpy(floatBuffer->getDevPtr(position[channel] + offset), idata,
         x_size*nof_incoming_records*sizeof(float), cudaMemcpyHostToDevice));
 
-    CudaVector<unsigned char>* jpeg = new CudaVector<unsigned char>(device, nfft * y_size * z_size * color_depth);
     // Start processing of incoming data
     base->setWindow(windowBuffer->getDevPtr(), x_size, type);
     base->window(floatBuffer->getDevPtr(position[channel] + offset), windowBuffer->getDevPtr(), x_size, nof_incoming_records);
@@ -227,8 +239,8 @@ void CudaAlgorithm::realtimeRangeDopplerMap(float* idata, char* odata, int nof_i
         base->hermitianTranspose(complexBuffer->getDevPtr(position[channel]), y_size, nfft);
         base->absolute(complexBuffer->getDevPtr(position[channel]), floatBuffer->getDevPtr(position[channel]), nfft, y_size);
         base->mapColors(floatBuffer->getDevPtr(position[channel]), charBuffer->getDevPtr(position[channel]),nfft, y_size, colormap);
-        //base->encodeBmpToJpeg((unsigned char*)charBuffer->getDevPtr(position[channel]), jpeg->getDevPtr(), nfft, y_size);
-        CUDA_CHECK(cudaMemcpy(&odata[0], charBuffer->getDevPtr(position[channel]), nfft * y_size * color_depth, cudaMemcpyDeviceToHost));
+        base->encodeBmpToJpeg((unsigned char*)charBuffer->getDevPtr(position[channel]), odata, &image_size, nfft, y_size);
+        CUDA_CHECK(cudaDeviceSynchronize());
         // Reset variables because images are processed
         if(channel == z_size-1)
         {

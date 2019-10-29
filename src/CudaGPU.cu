@@ -3,11 +3,11 @@
 
 CudaGPU::CudaGPU(int devNum)
 {
+    id = devNum;
     printf("Starting CUDA device query...\n");
     int deviceCount = 0;
     CUDA_CHECK(cudaGetDeviceCount(&deviceCount));
     checkMemory();
-    setDeviceID(devNum);
     CUDA_CHECK(cudaSetDevice(id));
     CUDA_CHECK(cudaGetDeviceProperties(&prop, id));
     if (deviceCount == 0)

@@ -67,6 +67,51 @@ __global__ void transposeGlobalKernel(float* idata, float* odata, int width, int
 		odata[tidx*height + tidy] = idata[tidy*width + tidx];
 	}
 }
+__global__ void transposeGlobalKernel(cufftComplex* idata, cufftComplex* odata, int width, int height)
+{
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+	if(tidx < width && tidy < height)
+	{
+		odata[tidx*height + tidy].x = idata[tidy*width + tidx].x;
+		odata[tidx*height + tidy].y = idata[tidy*width + tidx].y;
+	}
+}
+
+
+__global__ void transposeSharedKernel(float* data)
+{
+	__shared__ float tile_s[TILE_DIM][TILE_DIM+1];
+    __shared__ float tile_d[TILE_DIM][TILE_DIM+1];
+
+    int x = blockIdx.x * TILE_DIM + threadIdx.x;
+    int y = blockIdx.y * TILE_DIM + threadIdx.y;
+    int width = gridDim.x * TILE_DIM;
+	// handle off-diagonal case
+    if (blockIdx.y>blockIdx.x)
+	{
+      int dx = blockIdx.y * TILE_DIM + threadIdx.x;
+      int dy = blockIdx.x * TILE_DIM + threadIdx.y;
+      for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
+        tile_s[threadIdx.y+j][threadIdx.x] = data[(y+j)*width + x];
+      for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
+        tile_d[threadIdx.y+j][threadIdx.x] = data[(dy+j)*width + dx];
+      __syncthreads();
+      for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
+        data[(dy+j)*width + dx] = tile_s[threadIdx.x][threadIdx.y + j];
+      for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
+        data[(y+j)*width + x] = tile_d[threadIdx.x][threadIdx.y + j];
+    }
+	// handle on-diagonal case
+    else if (blockIdx.y==blockIdx.x)
+	{
+      for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
+        tile_s[threadIdx.y+j][threadIdx.x] = data[(y+j)*width + x];
+      __syncthreads();
+      for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
+        data[(y+j)*width + x] = tile_s[threadIdx.x][threadIdx.y + j];
+    }
+}
 
 __global__ void hermetianTransposeGlobalKernel(cufftComplex* idata, cufftComplex* odata, int width, int height)
 {
@@ -80,62 +125,57 @@ __global__ void hermetianTransposeGlobalKernel(cufftComplex* idata, cufftComplex
 	}
 }
 
-
-__global__ void transposeGlobalKernel(cufftComplex* idata, cufftComplex* odata, int width, int height)
+__global__ void hermetianTransposeSharedKernel(cufftComplex* data)
 {
-	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
-	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
-	if(tidx < width && tidy < height)
+	__shared__ cufftComplex tile_s[TILE_DIM][TILE_DIM+1];
+    __shared__ cufftComplex tile_d[TILE_DIM][TILE_DIM+1];
+
+	int x = blockIdx.x * TILE_DIM + threadIdx.x;
+	int y = blockIdx.y * TILE_DIM + threadIdx.y;
+	int width = gridDim.x * TILE_DIM;
+	// handle off-diagonal case
+	if (blockIdx.y>blockIdx.x)
 	{
-		odata[tidx*height + tidy].x = idata[tidy*width + tidx].x;
-		odata[tidx*height + tidy].y = idata[tidy*width + tidx].y;
+		int dx = blockIdx.y * TILE_DIM + threadIdx.x;
+		int dy = blockIdx.x * TILE_DIM + threadIdx.y;
+		for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
+		{
+			tile_s[threadIdx.y+j][threadIdx.x].x = data[(y+j)*width + x].x;
+			tile_s[threadIdx.y+j][threadIdx.x].y = (-1)*data[(y+j)*width + x].y;
+		}
+		for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
+		{
+			tile_d[threadIdx.y+j][threadIdx.x].x = data[(dy+j)*width + dx].x;
+			tile_d[threadIdx.y+j][threadIdx.x].y = (-1)*data[(dy+j)*width + dx].y;
+		}
+		__syncthreads();
+		for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
+		{
+			data[(dy+j)*width + dx].x = tile_s[threadIdx.x][threadIdx.y + j].x;
+			data[(dy+j)*width + dx].y = tile_s[threadIdx.x][threadIdx.y + j].y;
+		}
+		for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
+		{
+			data[(y+j)*width + x].x = tile_d[threadIdx.x][threadIdx.y + j].x;
+			data[(y+j)*width + x].y = tile_d[threadIdx.x][threadIdx.y + j].y;
+		}
 	}
-}
 
-__global__ void transposeSharedKernel(float* idata, float* odata, int height)
-{
-	__shared__ float tile[32][32];
-
-	int x = blockIdx.x * 32 + threadIdx.x;
-	int y = blockIdx.y * 32 + threadIdx.y;
-	int width = gridDim.x * 32;
-
-	for (int j = 0; j < 32; j += height/32)
-		tile[threadIdx.y+j][threadIdx.x] = idata[(y+j)*width + x];
-
-	__syncthreads();
-
-	x = blockIdx.y * 32 + threadIdx.x;  // transpose block offset
-	y = blockIdx.x * 32 + threadIdx.y;
-
-	for (int j = 0; j < 32; j += height/32)
-		odata[(y+j)*width + x] = tile[threadIdx.x][threadIdx.y + j];
-}
-
-__global__ void transposeSharedKernel(cufftComplex* idata, cufftComplex* odata, int height)
-{
-	__shared__ cufftComplex tile[32][32];
-
-	  int x = blockIdx.x * 32 + threadIdx.x;
-	  int y = blockIdx.y * 32 + threadIdx.y;
-	  int width = gridDim.x * 32;
-
-	  for (int j = 0; j < 32; j += height/32)
-	  {
-		  tile[threadIdx.y+j][threadIdx.x].x = idata[(y+j)*width + x].x;
-		  tile[threadIdx.y+j][threadIdx.x].y = idata[(y+j)*width + x].y;
-	  }
-
-	  __syncthreads();
-
-	  x = blockIdx.y * 32 + threadIdx.x;  // transpose block offset
-	  y = blockIdx.x * 32 + threadIdx.y;
-
-	  for (int j = 0; j < 32; j += height/32)
-	  {
-		  odata[(y+j)*width + x].x = tile[threadIdx.x][threadIdx.y + j].x;
-		  odata[(y+j)*width + x].y = tile[threadIdx.x][threadIdx.y + j].y;
-	  }
+	// handle on-diagonal case
+	else if (blockIdx.y==blockIdx.x)
+	{
+		for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
+		{
+			tile_s[threadIdx.y+j][threadIdx.x].x = data[(y+j)*width + x].x;
+			tile_s[threadIdx.y+j][threadIdx.x].y = (-1)*data[(y+j)*width + x].y;
+		}
+		__syncthreads();
+		for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
+		{
+			data[(y+j)*width + x].x = tile_s[threadIdx.x][threadIdx.y + j].x;
+			data[(y+j)*width + x].y = tile_s[threadIdx.x][threadIdx.y + j].y;
+		}
+	}
 }
 
 __global__ void absoluteKernel(cufftComplex* idata, float* odata, int width, int height)
@@ -156,13 +196,6 @@ __global__ void colormapJet(float* idata, unsigned char* odata, float max, float
 	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
 	int colormap_index = (int)((idata[tidx + width*tidy]-min)/(max-min)*(JET_SIZE-1));
-
-	// if(tidx == 20 || tidx == 30 || tidx == 50)
-	// 	printf("Index: %d, red: %d, blue: %d, green: %d, max: %f, min: %f; Value: %f position[%d][%d]\n",
-	// 		colormap_index,  (unsigned)colormap_blue[colormap_index][0],
-	// 		(unsigned)colormap_blue[colormap_index][1],(unsigned)colormap_blue[colormap_index][2],
-	// 		max, min, idata[tidx + width*tidy],
-	// 		tidy, tidx);
 
 	if(tidx < width && tidy < height)
 	{
@@ -325,3 +358,159 @@ __global__ void fftshift2d(T* data, int n, int batch)
 }
 template __global__ void fftshift2d<cufftComplex>(cufftComplex*, int, int);
 template __global__ void fftshift2d<float>(float*, int, int);
+
+
+__device__ void warp_reduce_max( float smem[64])
+{
+
+	smem[threadIdx.x] = smem[threadIdx.x+32] > smem[threadIdx.x] ?
+						smem[threadIdx.x+32] : smem[threadIdx.x]; DEBUG_SYNC;
+
+	smem[threadIdx.x] = smem[threadIdx.x+16] > smem[threadIdx.x] ?
+						smem[threadIdx.x+16] : smem[threadIdx.x]; DEBUG_SYNC;
+
+	smem[threadIdx.x] = smem[threadIdx.x+8] > smem[threadIdx.x] ?
+						smem[threadIdx.x+8] : smem[threadIdx.x]; DEBUG_SYNC;
+
+	smem[threadIdx.x] = smem[threadIdx.x+4] > smem[threadIdx.x] ?
+						smem[threadIdx.x+4] : smem[threadIdx.x]; DEBUG_SYNC;
+
+	smem[threadIdx.x] = smem[threadIdx.x+2] > smem[threadIdx.x] ?
+						smem[threadIdx.x+2] : smem[threadIdx.x]; DEBUG_SYNC;
+
+	smem[threadIdx.x] = smem[threadIdx.x+1] > smem[threadIdx.x] ?
+						smem[threadIdx.x+1] : smem[threadIdx.x]; DEBUG_SYNC;
+
+}
+
+
+__device__ void warp_reduce_min( float smem[64])
+{
+
+	smem[threadIdx.x] = smem[threadIdx.x+32] < smem[threadIdx.x] ?
+						smem[threadIdx.x+32] : smem[threadIdx.x]; DEBUG_SYNC;
+
+	smem[threadIdx.x] = smem[threadIdx.x+16] < smem[threadIdx.x] ?
+						smem[threadIdx.x+16] : smem[threadIdx.x]; DEBUG_SYNC;
+
+	smem[threadIdx.x] = smem[threadIdx.x+8] < smem[threadIdx.x] ?
+						smem[threadIdx.x+8] : smem[threadIdx.x]; DEBUG_SYNC;
+
+	smem[threadIdx.x] = smem[threadIdx.x+4] < smem[threadIdx.x] ?
+						smem[threadIdx.x+4] : smem[threadIdx.x]; DEBUG_SYNC;
+
+	smem[threadIdx.x] = smem[threadIdx.x+2] < smem[threadIdx.x] ?
+						smem[threadIdx.x+2] : smem[threadIdx.x]; DEBUG_SYNC;
+
+	smem[threadIdx.x] = smem[threadIdx.x+1] < smem[threadIdx.x] ?
+						smem[threadIdx.x+1] : smem[threadIdx.x]; DEBUG_SYNC;
+
+}
+
+template<int threads> __global__ void find_min_max_dynamic(float* in, float* out, int n, int start_adr, int num_blocks)
+{
+	__shared__ float smem_min[64];
+	__shared__ float smem_max[64];
+	int tid = threadIdx.x + start_adr;
+	float max = -inf;
+	float min = inf;
+	float val;
+	// tail part
+	int mult = 0;
+	for(int i = 1; mult + tid < n; i++)
+	{
+		val = in[tid + mult];
+
+		min = val < min ? val : min;
+		max = val > max ? val : max;
+
+		mult = int_mult(i,threads);
+	}
+	// previously reduced MIN part
+	mult = 0;
+	int i;
+	for(i = 1; mult+threadIdx.x < num_blocks; i++)
+	{
+		val = out[threadIdx.x + mult];
+
+		min = val < min ? val : min;
+
+		mult = int_mult(i,threads);
+	}
+	// MAX part
+	for(; mult+threadIdx.x < num_blocks*2; i++)
+	{
+		val = out[threadIdx.x + mult];
+
+		max = val > max ? val : max;
+
+		mult = int_mult(i,threads);
+	}
+	if(threads == 32)
+	{
+		smem_min[threadIdx.x+32] = 0.0f;
+		smem_max[threadIdx.x+32] = 0.0f;
+
+	}
+	smem_min[threadIdx.x] = min;
+	smem_max[threadIdx.x] = max;
+	__syncthreads();
+	if(threadIdx.x < 32)
+	{
+		warp_reduce_min(smem_min);
+		warp_reduce_max(smem_max);
+	}
+	if(threadIdx.x == 0)
+	{
+		out[blockIdx.x] = smem_min[threadIdx.x]; // out[0] == ans
+		out[blockIdx.x + gridDim.x] = smem_max[threadIdx.x];
+	}
+}
+template __global__ void find_min_max_dynamic<64>(float*, float*, int, int, int);
+//template __global__ void find_min_max_dynamic<int>(float*, float*, int, int, int);
+
+template<int els_per_block, int threads> __global__ void find_min_max(float* in, float* out)
+{
+	__shared__ float smem_min[64];
+	__shared__ float smem_max[64];
+	int tid = threadIdx.x + blockIdx.x*els_per_block;
+	float max = -inf;
+	float min = inf;
+	float val;
+
+	const int iters = els_per_block/threads;
+#pragma unroll
+		for(int i = 0; i < iters; i++)
+		{
+
+			val = in[tid + i*threads];
+
+			min = val < min ? val : min;
+			max = val > max ? val : max;
+
+		}
+	if(threads == 32)
+	{
+		smem_min[threadIdx.x+32] = 0.0f;
+		smem_max[threadIdx.x+32] = 0.0f;
+
+	}
+	smem_min[threadIdx.x] = min;
+	smem_max[threadIdx.x] = max;
+	__syncthreads();
+	if(threadIdx.x < 32)
+	{
+		warp_reduce_min(smem_min);
+		warp_reduce_max(smem_max);
+	}
+	if(threadIdx.x == 0)
+	{
+		out[blockIdx.x] = smem_min[threadIdx.x]; // out[0] == ans
+		out[blockIdx.x + gridDim.x] = smem_max[threadIdx.x];
+	}
+}
+template __global__ void find_min_max<2048, 64>(float*, float*);
+template __global__ void find_min_max<4096, 64>(float*, float*);
+template __global__ void find_min_max<8192, 64>(float*, float*);
+template __global__ void find_min_max<16384, 64>(float*, float*);
+template __global__ void find_min_max<32768, 64>(float*, float*);
