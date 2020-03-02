@@ -207,11 +207,6 @@ void SignalGenerator::load()
 	}
 }
 
-float* SignalGenerator::getSignal(int pos)
-{
-	return &p_sig[pos];
-}
-
 void  SignalGenerator::setSignal(float* signal)
 {
 	p_sig = signal;

@@ -25,7 +25,7 @@ public:
 	void cosinus();
 	void rectangle();
 	void toggle(int *p);
-	float* getSignal(int pos = 0);
+	float* getSignal(int pos = 0){return &p_sig[pos];}
 	size_t getSize(){return size;}
 	void setCenterFreq(float val);
 	void setSampleFreq(float val);

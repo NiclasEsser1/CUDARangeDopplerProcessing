@@ -52,6 +52,10 @@ public:
     void setDevice(CudaGPU* val){device = val;}
 
     /* GETTER */
+    CudaVector<float>* getFloatVector(){return floatBuffer;}
+	CudaVector<float>* getWindowVector(){return windowBuffer;}
+	CudaVector<cufftComplex>* getComplexVector(){return complexBuffer;}
+	CudaVector<unsigned char>* getCharVector(){return charBuffer;}
     int getColorDepth(){return color_depth;}
     float getWindowSize(){return windowBuffer->getSize();}
     float* getFloatBuffer(){return floatBuffer->getDevPtr();}
@@ -66,7 +70,7 @@ public:
     /* MAKER */
     void make_tcp_header(tcp_header* header, int records_processed, int nof_records, int ch);
     /* Templates */
-    template<typename T> void freeCudaVector(CudaVector<T>* vec){if (vec != NULL){vec->resize(0);}}
+    template<typename T> void freeCudaVector(CudaVector<T>* vec){if (vec != NULL){vec->freeMemory();delete(vec);}}
     template<typename T> void saveVector(CudaVector<T>* vec, const char* filename = "results/data/processed.dat")
     {
         FILE* fid;

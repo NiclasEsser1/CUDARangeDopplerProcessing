@@ -44,6 +44,7 @@ public:
     void c2c1dFFT(cufftComplex* idata, int n, int batch);
 	void mapColors(float* idata, unsigned char* odata, int width, int height, color_t type = JET);
 	void hermitianTranspose(cufftComplex* odata, int width, int height, cufftComplex* idata = NULL);
+	void hermetianTransposeShared(cufftComplex* odata, int width, int height);
 	void fftshift(cufftComplex* data, int n, int batch = 1);
 	void encodeBmpToJpeg(unsigned char* idata, uint8_t* odata, int* p_jpeg_size, int width, int height);
 	template <typename T> void transpose(T* odata, int width, int height, T* idata = NULL);
@@ -55,7 +56,7 @@ public:
 	void findBlockSize(int* whichSize, int* num_el);
 
 	void setDevice(CudaGPU* val){device = val;}
-    void setWindow(float* idata, int width, int type = HAMMING);
+    void setWindow(float* idata, int width, int type = HAMMING, int height = 0);
 
 	CudaGPU* getDevice(){return device;}
 

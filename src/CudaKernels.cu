@@ -7,6 +7,7 @@ __global__ void windowHamming(float* idata, int length)
 	int tidx = threadIdx.x + blockIdx.x*blockDim.x;
 	if (tidx < length)
 	{
+	printf("tidx:%d", tidx);
 		idata[tidx] = 0.54 - 0.46 * cos(2*tidx*PI_F / (length - 1));
 	}
 }
@@ -32,6 +33,47 @@ __global__ void windowBlackman(float* idata, int length)
 	if (tidx < length)
 	{
 		idata[tidx] = 0.74 / 2 * -0.5 * cos(2 * PI_F*tidx / (length - 1)) + 0.16 / 2 * sin(4 * PI_F*tidx / (length - 1));
+	}
+}
+
+__global__ void windowHamming2d(float* idata, int length, int height)
+{
+	int tidx = threadIdx.x + blockIdx.x*blockDim.x;
+	int tidy = threadIdx.y + blockIdx.y*blockDim.y;
+	//printf("tidy: %d, tidy:%d, idx:%d", tidy,tidx ,tidy * length + tidx);
+	if (tidx < length && tidy < height)
+	{
+		//printf("tidy: %d, tidy:%d, idx:%d", tidy,tidx ,tidy * length + tidx);
+		idata[tidy * length + tidx] = (0.54 - 0.46 * cos(2*tidy*PI_F / (height - 1))) * (0.54 - 0.46 * cos(2*tidx*PI_F / (length - 1)));
+	}
+}
+
+__global__ void windowHann2d(float* idata, int length, int height)
+{
+	int tidx = threadIdx.x + blockIdx.x*blockDim.x;
+	int tidy = threadIdx.y + blockIdx.y*blockDim.y;
+	if (tidx < length && tidy < height)
+	{
+		idata[tidy * length + tidx] =  0.5*(1 + cos(2*tidy*PI_F / (height - 1))) * 0.5*(1 + cos(2*tidx*PI_F / (length - 1)));
+	}
+}
+__global__ void windowBartlett2d(float* idata, int length, int height)
+{
+	int tidx = threadIdx.x + blockIdx.x*blockDim.x;
+	int tidy = threadIdx.y + blockIdx.y*blockDim.y;
+	if (tidx < length && tidy < height)
+	{
+		idata[tidy * length + tidx] = 0;
+	}
+}
+__global__ void windowBlackman2d(float* idata, int length, int height)
+{
+	int tidx = threadIdx.x + blockIdx.x*blockDim.x;
+	int tidy = threadIdx.y + blockIdx.y*blockDim.y;
+	if (tidx < length && tidy < height)
+	{
+		idata[tidy * length + tidx] = (0.74 / 2 * -0.5 * cos(2 * PI_F*tidy / (height - 1)) + 0.16 / 2 * sin(4 * PI_F*tidy / (height - 1)))
+			* (0.74 / 2 * -0.5 * cos(2 * PI_F*tidx / (length - 1)) + 0.16 / 2 * sin(4 * PI_F*tidx / (length - 1)));
 	}
 }
 

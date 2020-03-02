@@ -60,7 +60,10 @@ public:
     	// if(m_bValues != NULL)
 		// CUDA_CHECK(cudaFree(m_bValues));
     }
-
+    void freeMemory()
+    {
+        CUDA_CHECK(cudaFree(m_bValues));
+    }
     void resize(std::size_t size = 1, bool print = false)
     {
         T* ptr = m_bValues;

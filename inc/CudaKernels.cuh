@@ -24,6 +24,10 @@ __global__ void windowHamming(float* idata, int length);
 __global__ void windowHann(float* idata, int length);
 __global__ void windowBartlett(float* idata, int length);
 __global__ void windowBlackman(float* idata, int length);
+__global__ void windowHamming2d(float* idata, int length, int height);
+__global__ void windowHann2d(float* idata, int length, int height);
+__global__ void windowBartlett2d(float* idata, int length, int height);
+__global__ void windowBlackman2d(float* idata, int length, int height);
 
 __global__ void windowKernel(float* idata, float* window, int width, int height);
 __global__ void windowKernel(cufftComplex* idata, float* window, int width, int height);

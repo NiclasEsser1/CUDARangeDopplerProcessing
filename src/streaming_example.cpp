@@ -15,8 +15,8 @@ int main(int argc, char* argv[])
     // Acquisition parameters (simulated)
     int nof_samples = 2048;             // samples per record
     int nof_records = 8192;             // total amount of records
-    int nof_records_packet = 512;       // records to be transmitted per run
-    unsigned nof_channels = 3;               // amount of operating channels
+    int nof_records_packet = 8;       // records to be transmitted per run
+    unsigned nof_channels = 1;               // amount of operating channels
     unsigned nof_recieved_records = 0;       //
     int recieved_all_records = 0;       // flag for while loop
     int runs = 1;                       // counts runs per image
@@ -68,11 +68,11 @@ int main(int argc, char* argv[])
         signals[ch] = new SignalGenerator(fsample, fcenter, amplitude,
             nof_samples, nof_records_packet, nof_channels);
         // Generates a sweep with noise (true)
-        // signals[ch]->sweep(bw, time, fdoppler*ch, true);
+        signals[ch]->sweep(bw, time, fdoppler*ch, true);
     }
 
     // Setup an tcp socket server for Inter Process Communication between, back and front end
-    socket.open();
+    //socket.open();
     cudaProfilerStart();
     // Loop until all records are recieved
     while(!recieved_all_records)
@@ -82,22 +82,22 @@ int main(int argc, char* argv[])
         for(int ch = 0; ch < nof_channels; ch++)
         {
             // process data to range doppler maps
-            signals[ch]->sweep(bw, time, fdoppler*ch, true, runs);
-            algthm.realtimeRangeMap(signals[ch]->getSignal(),images[ch],
+            //signals[ch]->sweep(bw, time, fdoppler*ch, true, runs);
+            algthm.realtimeRangeDopplerMap(signals[ch]->getSignal(),images[ch],
                 nof_records_packet,
                 window, colormap);
             CUDA_CHECK(cudaDeviceSynchronize());
             // If maps are processed
             if(nof_recieved_records % img_height == 0)
             {
-                if(socket.isActive())
-                {
-                    algthm.make_tcp_header(&header, nof_recieved_records, nof_records, ch);
-                    socket.send(&header, sizeof(header));
-                    socket.wait();
-                    socket.send(images[ch], algthm.getImageSize());
-                    socket.wait();
-                }
+                // if(socket.isActive())
+                // {
+                    // algthm.make_tcp_header(&header, nof_recieved_records, nof_records, ch);
+                    // socket.send(&header, sizeof(header));
+                    // socket.wait();
+                    // socket.send(images[ch], algthm.getImageSize());
+                    // socket.wait();
+                // }
                 runs = 0;
             }
         }

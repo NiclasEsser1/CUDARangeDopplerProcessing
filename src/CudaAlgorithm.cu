@@ -25,10 +25,10 @@ void CudaAlgorithm::freeMemory()
 	// If memory is allocated, free it
 	if(allocated)
 	{
-		// freeCudaVector(floatBuffer);
-		// freeCudaVector(windowBuffer);
-		// freeCudaVector(complexBuffer);
-		// freeCudaVector(charBuffer);
+		freeCudaVector(floatBuffer);
+		freeCudaVector(windowBuffer);
+		freeCudaVector(complexBuffer);
+		freeCudaVector(charBuffer);
         allocated = false;
         printf("Free device memory\n");
 	}
@@ -42,7 +42,6 @@ bool CudaAlgorithm::initDeviceEnv()
         + x_size * y_size * z_size * sizeof(cufftComplex)*2
         + x_size * y_size * z_size * color_depth * sizeof(unsigned char)
         + x_size * sizeof(float));
-
     printf("\nNeeded memory: %.2lf; free memory (%ld/%ld) MBytes\n",
         total_required_mem/(1024*1024),
         device->getFreeMemory()/(1024*1024),

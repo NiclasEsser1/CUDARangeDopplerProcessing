@@ -19,38 +19,53 @@ CudaBase::~CudaBase()
 * 	Windowing
 */
 
-void CudaBase::setWindow(float* idata, int win_len, int type)
+void CudaBase::setWindow(float* idata, int win_len, int type, int height)
 {
-	int tx = MAX_NOF_THREADS;
-	int bx = win_len / MAX_NOF_THREADS + 1;
-
-	dim3 blockSize(tx);
-	dim3 gridSize(bx);
-
-	switch (type)
+	if(height == 0)
 	{
-		case HAMMING:
-			//printf("Calculate hamming window... ");
-			windowHamming <<<gridSize, blockSize >>> (idata, win_len);
-			// CUDA_CHECK(cudaDeviceSynchronize());
-			break;
-		case HANN:
-			//printf("Calculate hann window... ");
-			windowHann <<<gridSize, blockSize >>> (idata, win_len);
-			// CUDA_CHECK(cudaDeviceSynchronize());
-			break;
-		case BARTLETT:
-			//printf("Calculate bartlett window... ");
-			windowBartlett <<<gridSize, blockSize >>> (idata, win_len);
-			// CUDA_CHECK(cudaDeviceSynchronize());
-			break;
-		case BLACKMAN:
-			//printf("Calculate blackman window... ");
-			windowBlackman <<<gridSize, blockSize >>> (idata, win_len);
-			// CUDA_CHECK(cudaDeviceSynchronize());
-			break;
+	 	int tx = MAX_NOF_THREADS;
+		int bx = win_len / MAX_NOF_THREADS + 1;
+		dim3 blockSize(tx);
+		dim3 gridSize(bx);
+		switch (type)
+		{
+			case HAMMING:
+				windowHamming <<<gridSize, blockSize >>> (idata, win_len);
+				break;
+			case HANN:
+				windowHann <<<gridSize, blockSize >>> (idata, win_len);
+				break;
+			case BARTLETT:
+				windowBartlett <<<gridSize, blockSize >>> (idata, win_len);
+				break;
+			case BLACKMAN:
+				windowBlackman <<<gridSize, blockSize >>> (idata, win_len);
+				break;
+		}
 	}
-	//printf("done!\n");
+	else
+	{
+	 	int tx = MAX_NOF_THREADS;
+		int bx = win_len/tx + 1;
+		int by = height;
+		dim3 blockSize(tx);
+		dim3 gridSize(bx, by);
+		switch (type)
+		{
+			case HAMMING:
+				windowHamming2d<<<gridSize, blockSize >>> (idata, win_len, height);
+				break;
+			case HANN:
+				windowHann2d<<<gridSize, blockSize >>> (idata, win_len, height);
+				break;
+			case BARTLETT:
+				windowBartlett2d <<<gridSize, blockSize >>> (idata, win_len, height);
+				break;
+			case BLACKMAN:
+				windowBlackman2d <<<gridSize, blockSize >>> (idata, win_len, height);
+				break;
+		}
+	}
 }
 
 template <typename T>
@@ -96,24 +111,38 @@ void CudaBase::hermitianTranspose(cufftComplex* odata, int width, int height, cu
 	dim3 blockSize(tx,ty);
 	dim3 gridSize(bx,by);
 	// If matrix is a square matrix
-	if(width == height)
-	{
-		hermetianTransposeSharedKernel<<<gridSize, blockSize>>>(odata);
-	}
-	else if(idata == NULL)
+	// if(width == height)
+	// {
+	// 	printf("transpose shared\n");
+	// 	hermetianTransposeSharedKernel<<<gridSize, blockSize>>>(odata);
+	// }
+	// else
+	if(idata == NULL)
 	{
 		CudaVector<cufftComplex>* temp = new CudaVector<cufftComplex>(device, width*height);
 		CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), odata, temp->getSize(), cudaMemcpyDeviceToDevice));
 		hermetianTransposeGlobalKernel<<<gridSize, blockSize>>>(temp->getDevPtr(), odata, width, height);
-		temp->resize(0);
+		temp->freeMemory();
 		delete(temp);
 	}
 	else
 	{
 		hermetianTransposeGlobalKernel<<<gridSize, blockSize>>>(idata, odata, width, height);
 	}
-	CUDA_CHECK(cudaDeviceSynchronize());
+	//CUDA_CHECK(cudaDeviceSynchronize());
 	//printf("done\n");
+}
+
+void CudaBase::hermetianTransposeShared(cufftComplex* data, int width, int height)
+{
+	int tx = TILE_DIM;
+	int ty = BLOCK_ROWS;
+	int bx = width/TILE_DIM;
+	int by = height/TILE_DIM;
+	dim3 blockSize(tx,ty);
+	dim3 gridSize(bx,by);
+	hermetianTransposeSharedKernel<<<gridSize, blockSize>>>(data);
+	//CUDA_CHECK(cudaDeviceSynchronize());
 }
 
 
@@ -131,7 +160,7 @@ template <typename T> void CudaBase::transpose(T* odata, int width, int height, 
 		CudaVector<T>* temp = new CudaVector<T>(device, width*height);
 		CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), odata, temp->getSize(), cudaMemcpyDeviceToDevice));
 		transposeGlobalKernel<<<gridSize, blockSize>>>(temp->getDevPtr(), odata, width, height);
-		temp->resize(0);
+		temp->freeMemory();
 		delete(temp);
 	}
 	else
@@ -154,7 +183,7 @@ template <typename T> void CudaBase::transposeShared(T* data, int width, int hei
 	dim3 blockSize(tx,ty);
 	dim3 gridSize(bx,by);
 	transposeSharedKernel<<<gridSize, blockSize>>>(data);
-	CUDA_CHECK(cudaDeviceSynchronize());
+	//CUDA_CHECK(cudaDeviceSynchronize());
 }
 template void CudaBase::transposeShared<float>(float*,int,int);
 // template void CudaBase::transposeShared<cufftComplex>(cufftComplex*, int, int, cufftComplex*);
@@ -195,7 +224,7 @@ T CudaBase::max(T* idata, int width, int height)
 	CUDA_CHECK(cudaDeviceSynchronize());
 
 	CUDA_CHECK(cudaMemcpy(&max_val, temp->getDevPtr(0), sizeof(T), cudaMemcpyDeviceToHost));
-	temp->resize(0);
+	temp->freeMemory();
 	delete(temp);
 	return max_val;
 }
@@ -222,7 +251,7 @@ T CudaBase::min(T* idata, int width, int height)
 	CUDA_CHECK(cudaDeviceSynchronize());
 
 	CUDA_CHECK(cudaMemcpy(&min_val, temp->getDevPtr(0), sizeof(T), cudaMemcpyDeviceToHost));
-	temp->resize(0);
+	temp->freeMemory();
 	delete(temp);
 	return min_val;
 }
@@ -339,7 +368,7 @@ void CudaBase::mapColors(float* idata, unsigned char* odata, int width, int heig
 	minMax(idata, temp->getDevPtr(), width*height);
 	cudaMemcpy(&min_v, temp->getDevPtr(0), sizeof(float), cudaMemcpyDeviceToHost);
 	cudaMemcpy(&max_v, temp->getDevPtr(1), sizeof(float), cudaMemcpyDeviceToHost);
-	temp->resize(0);
+	temp->freeMemory();
 	delete(temp);
 	dim3 blockSize(tx,ty);
 	dim3 gridSize(bx,by);
@@ -348,25 +377,19 @@ void CudaBase::mapColors(float* idata, unsigned char* odata, int width, int heig
 	{
 		case JET:
 			colormapJet<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
-			// CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 		case VIRIDIS:
 			colormapViridis<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
-			// CUDA_CHECK(cudaDeviceSynchronize());
 		case ACCENT:
 			colormapAccent<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
-			// CUDA_CHECK(cudaDeviceSynchronize());
 		case MAGMA:
 			colormapMagma<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
-			// CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 		case INFERNO:
 			colormapInferno<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
-			// CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 		case BLUE:
 			colormapBlue<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
-			// CUDA_CHECK(cudaDeviceSynchronize());
 			break;
 	}
 }
