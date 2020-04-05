@@ -17,7 +17,7 @@ To get started with the project some requirements are necessary to install.
 
 If the requirements are met, the project can be installed as follows.
 
-1.) If you the project is not downloaded yet, open a terminal and point to a desired folder ($DIR), otherwise proceed with step 3.)
+1.) If the project is not downloaded yet, open a terminal and point to a desired folder ($DIR), otherwise proceed with step 3.)
 
 ```
 cd $DIR
@@ -26,7 +26,7 @@ cd $DIR
 ```
 git clone https://github.com/NiclasEsser1/CUDARangeDopplerProcessing.git
 ```
-3.) Point the console to into the root folder of the project
+3.) Point the console to the root folder of the project
 
 ```
 cd CUDARangeDopplerProcessing
@@ -39,16 +39,17 @@ The project should be compiled. If not, take a closer look into ```makefile``` a
 
 ## Running
 
-The project provides an example for offline processing ```bin/offline_processing```.  If the file is executed, processing configurations must be passed to the program. First, a raw data file must be specified. For installation verification, the sample file should be specified in the Samples folder.
+The project provides an example for offline processing ```bin/offline_processing```.  If the file is executed, processing configurations must be passed to the program. First, a raw data file must be specified. To verify the installation process, a sample file is given.
 ```
 $DIR/samples/raw_sample.dat
 ```
-After you passed the remaining processing arguments, the algorithm is executed on the GPU. You can find the results of the processing in the folder ``$DIR/results/img/``
+After you passed the remaining processing arguments, the algorithm is executed on the GPU. You can find the results of the processing in ``$DIR/results/img/``
 
 ### Read-out your own raw data
 
-The raw data file corresponds to the default format shown in the Figure below ![Binary file for offline processing](notes/default_format.png).
-If your raw data does not match this format, feel free to add read-out method (e.g ```SignalGenerator::loadMyFile```).
+The raw data file corresponds to the default format shown in the Figure below. ![Binary file for offline processing](notes/default_format.png)
+
+If your raw data does not match this format, feel free to add your own read-out method (e.g ```SignalGenerator::loadMyFile```).
 
 
 ### Benchmarks
@@ -59,15 +60,15 @@ The project also contains different benchmarks:
 ```
 $DIR/bin/benchmark_algorithm
 ```
-* Benchmark single CUDA kernels (results can be found in a in ```$DIR/results/benchmarks/benchmark_kernels.csv```)
+* Benchmark single CUDA kernels (results can be found in ```$DIR/results/benchmarks/benchmark_kernels.csv```)
 ```
 $DIR/bin/benchmark_kernels
 ```
-* Benchmark  memory bandwidth (results can be found in a in ```$DIR/results/benchmarks/benchmark_memory_bandwidth.csv```)
+* Benchmark  memory bandwidth (results can be found in ```$DIR/results/benchmarks/benchmark_memory_bandwidth.csv```)
 ```
 $DIR/bin/benchmark_memory_bandwidth
 ```
-* Benchmark 1D FFTs (results can be found in a in ```$DIR/results/benchmarks/benchmark_fft.csv```)
+* Benchmark 1D FFTs (results can be found in ```$DIR/results/benchmarks/benchmark_fft.csv```)
 ```
 $DIR/bin/benchmark_fft
 ```
@@ -80,7 +81,7 @@ $DIR/bin/benchmark_fft
    1024    |   1024  | 7.17 ms |  4.9 ms
    2048    |   2048  | 17.92 ms |  10.34 ms
    4096    |   4096  | 68,56 ms | 40,192 ms
-   8192    |   4096  | 140,84 | 82.14 ms
+   8192    |   4096  | 140.84 ms | 82.14 ms
 
 
 
