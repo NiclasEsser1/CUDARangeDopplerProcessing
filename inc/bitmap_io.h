@@ -6,12 +6,17 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "image.h"
+#include "utils.h"
+
 class Bitmap_IO {
 public:
 	Bitmap_IO() : image( NULL ) {}
 
-	Bitmap_IO( int w, int h, int c ) {
-		image = new char[ w * h * c/8];
+	Bitmap_IO( int w, int h, int c, bool allocate = true)
+	{
+		if(allocate)
+			image = new char[ w * h * c/8];
 		header.filesz = sizeof( bmpHeader ) + sizeof( bmpInfo ) + ( w * h * c / 8);
 		header.bmp_offset = sizeof( bmpHeader ) + sizeof( bmpInfo );
 		info.header_sz = sizeof( bmpInfo );
@@ -27,25 +32,27 @@ public:
 		info.nimpcolors = 0;
 	}
 
-	bool Save( const char* filename ) {
+	bool save( string filename )
+	{
 		char head[2] = {'B', 'M'};
 		unsigned char bmppad[3] = {0,0,0};
-		if( image == NULL ) {
+		if( image == NULL )
+		{
 			std::cerr << "Image unitialized" << std::endl;
 			return false;
 		}
 		// printf("DIR: %s\n", filename);
 
-		FILE* fid = fopen(filename, "wb");
+		FILE* fid = fopen(filename.c_str(), "wb");
 		if(fid != NULL)
 		{
 			fwrite(head, sizeof(char), 2, fid);
 			fwrite(&header, sizeof( bmpHeader ), 1, fid);
 			fwrite(&info, sizeof( bmpInfo ), 1, fid);
-			for(int i = Height()-1; i >= 0; i--)
+			for(int i = height()-1; i >= 0; i--)
 			{
-				fwrite(&bmppad, sizeof(char), (4-(Width()*3)%4)%4, fid);
-				fwrite(&image[Width()*i*3], sizeof(char)* ColorDepth()/8, Width(), fid);
+				fwrite(&bmppad, sizeof(char), (4-(width()*3)%4)%4, fid);
+				fwrite(&image[width()*i*3], sizeof(char)* colorDepth()/8, width(), fid);
 			}
 
 
@@ -53,20 +60,23 @@ public:
 		}
 		else
 		{
-			printf("Could not open file: %s\n", filename);
+			utils::msg("Could not open file: " + filename);
 		}
 
 		return true;
 	}
 
-	bool Load(const char* filename) {
-		if( image != NULL ) {
+	bool load(const char* filename)
+	{
+		if( image != NULL )
+		{
 			delete[] image;
 		}
 
 		std::ifstream file( filename, std::ios::in | std::ios::binary );
 
-		if( !file.is_open() ) {
+		if( !file.is_open() )
+		{
 			std::cerr << "Cannot open " << filename << std::endl;
 			return false;
 		}
@@ -95,30 +105,30 @@ public:
 		}
 	}
 
-	int Width() {
+	int width() {
 		return info.width;
 	}
 
-	int Height() {
+	int height() {
 		return info.height;
 	}
 
-	int ColorDepth() {
+	int colorDepth() {
 		return info.bitspp;
 	}
 
-	char GetPixel( int x, int y ) {
+	char getPixel( int x, int y ) {
 		return image[ y * info.width + x ];
 	}
 
-	void SetPixel( int x, int y, char color ) {
+	void setPixel( int x, int y, char color ) {
 		image[ y * info.width + x ] = color;
 	}
-	char* GetImagePtr(int pos = 0) {
+	char* getImagePtr(int pos = 0) {
 		return &image[pos];
 	}
-	void SetImage(char* input){
-		//std::memcpy(image, input, info.width*info.height);
+	void setImage(char* input){
+		image = input;
 	}
 
 

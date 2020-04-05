@@ -1,8 +1,8 @@
-#include "CudaGPU.cuh"
-#include "CudaBase.cuh"
-#include "CudaAlgorithm.cuh"
-#include "CudaTest.h"
-#include "Bitmap_IO.h"
+#include "cudagpu.cuh"
+#include "cudabase.cuh"
+#include "cudaalgorithm.cuh"
+#include "cudatest.h"
+#include "bitmap_io.h"
 
 #include <stdio.h>
 #include <cuda_runtime_api.h>
@@ -35,8 +35,4 @@ void testClasses()
 		test_base.testCudaBase(2048, 1024);
 		cu_base.~CudaBase();
 	}
-	// CudaBase cu_base(&device);
-	// CudaAlgorithm cu_algo(&cu_base, 512, 512, 1, 3);
-	// CudaTest<CudaAlgorithm> test_algo(&device, &cu_algo);
-	// test_algo.testCudaAlgorithms();
 }

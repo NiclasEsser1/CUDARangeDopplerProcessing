@@ -1,4 +1,4 @@
-#include "CudaGPU.cuh"
+#include "cudagpu.cuh"
 
 
 CudaGPU::CudaGPU(int devNum)
@@ -7,7 +7,6 @@ CudaGPU::CudaGPU(int devNum)
     printf("Starting CUDA device query...\n");
     int deviceCount = 0;
     CUDA_CHECK(cudaGetDeviceCount(&deviceCount));
-    checkMemory();
     CUDA_CHECK(cudaSetDevice(id));
     CUDA_CHECK(cudaGetDeviceProperties(&prop, id));
     if (deviceCount == 0)
@@ -18,6 +17,7 @@ CudaGPU::CudaGPU(int devNum)
     {
         printf("Detected %d CUDA Capable device(s), choosed device %d\n", deviceCount, id);
     }
+    (cuMemGetInfo(&free_mem, &total_mem));
 }
 
 CudaGPU::~CudaGPU()
@@ -37,15 +37,14 @@ int CudaGPU::getDeviceID()
 
 cudaDeviceProp CudaGPU::getProperties()
 {
-    cudaGetDeviceProperties(&prop, id);
     return prop;
 }
 int CudaGPU::checkMemory(size_t size, bool print)
 {
-    cuMemGetInfo(&free_mem, &total_mem);
     if(size != 0 && print)
-        printf("GPU free mem: (%.2f/%.2f) MBytes\n", (float)free_mem/(1024*1024), (float)total_mem/(1024*1024));
-    if(free_mem < size)
-        return 0;
-    return 1;
+		printf("GPU free mem: (%.2f/%.2f) MBytes\n", (float)free_mem/(1024*1024), (float)total_mem/(1024*1024));
+	if(free_mem < size)
+		return 0;
+    free_mem = free_mem - size;
+	return 1;
 }

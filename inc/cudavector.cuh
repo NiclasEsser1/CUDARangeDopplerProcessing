@@ -1,15 +1,14 @@
 #ifndef CUDAVECTOR_CUH_
 #define CUDAVECTOR_CUH_
 
-#include "CudaGPU.cuh"
+#include "cudagpu.cuh"
+
 #include <iostream>
 #include <string>
-#include <cuda_runtime.h>
-#include <cufft.h>
 #include <stdio.h>
 #include <unistd.h>
 
-
+using namespace std;
 
 template <typename T>
 class CudaVector
@@ -17,58 +16,62 @@ class CudaVector
 private:
     CudaGPU* device;
     T* m_bValues;
-    std::size_t m_bSize;
-    std::size_t eleSize;
+    size_t m_bSize;
+    size_t type_size;
+    size_t num_elements;
 public:
-    __host__
-    void* operator new(std::size_t size)
+    void* operator new(size_t size)
     {
         CudaVector<T>* object = NULL;
         object = (CudaVector<T> *)malloc(sizeof(CudaVector<T>));
         return object;
     }
 
-    __host__
     void operator delete(void* object)
     {
         free(object);
     }
 
-    __host__
-    CudaVector(CudaGPU* gpu, std::size_t size = 1, bool print = false)
+    CudaVector(CudaGPU* gpu, size_t size = 1, bool print = false)
     {
         device = gpu;
+        num_elements = size;
         m_bSize = size * sizeof(T);
-        eleSize = sizeof(T);
+        type_size = sizeof(T);
         if(device->checkMemory(size, print))
         {
             if(size != 0 && print)
-                printf("Allocating memory: %.4f MBytes\n", (float)m_bSize/(1024*1024));
+            {
+                utils::msg("Allocating memory: " + to_string((float)m_bSize/(1024*1024)) + "MBytes");
+            }
             CUDA_CHECK(cudaMalloc(&m_bValues, m_bSize ));
             CUDA_CHECK(cudaMemset(m_bValues, 0, m_bSize));
         }
         else
         {
-            printf("GPU memory is out of range, could not allocate memory..\n");
+            utils::msg("GPU memory is out of range, could not allocate memory...");
             exit(1);
         }
     }
 
-    __host__
     ~CudaVector()
     {
+        freeMemory();
     	// if(m_bValues != NULL)
 		// CUDA_CHECK(cudaFree(m_bValues));
     }
+
     void freeMemory()
     {
+        device->freedMemory(m_bSize);
         CUDA_CHECK(cudaFree(m_bValues));
     }
-    void resize(std::size_t size = 1, bool print = false)
+
+    void resize(size_t size = 1, bool print = false)
     {
         T* ptr = m_bValues;
         m_bSize = size * sizeof(T);
-        eleSize = sizeof(T);
+        type_size = sizeof(T);
         if(cudaFree(m_bValues)  == cudaSuccess)
         {
             m_bValues = ptr;
@@ -76,81 +79,56 @@ public:
             {
                 if(size != 0 && print)
                 {
-                    printf("Resizing cuda vector...\n");
-                    printf("Allocating memory: %.4f MBytes\n", (float)m_bSize/(1024*1024));
+                    utils::msg("Resizing cuda vector..");
+                    utils::msg("Allocating memory: " + to_string((float)m_bSize/(1024*1024)) + " MBytes");
                 }
                 CUDA_CHECK(cudaMalloc(&m_bValues, m_bSize ));
                 CUDA_CHECK(cudaMemset(m_bValues, 0, m_bSize));
-                // device->checkMemory(size);
             }
             else
             {
-                printf("GPU memory is out of range, could not allocate memory..\n");
+                utils::msg("GPU memory is out of range, could not allocate memory..");
                 exit(1);
             }
         }
     }
-    __host__
-    T* getDevPtr(int position = 0)
-    {
-        return &m_bValues[position];
-    }
 
-    __host__
-    std::size_t getSize()
-    {
-        return m_bSize;
-    }
-
-    __host__
-    std::size_t geteleSize()
-    {
-        return eleSize;
-    }
-
-    __host__
-    void printComplex(unsigned int first = 0)
-    {
-        cufftComplex* cpu_buf = (cufftComplex*)malloc(m_bSize);
-        CUDA_CHECK(cudaMemcpy(cpu_buf, m_bValues, m_bSize, cudaMemcpyDeviceToHost));
-        for(int i = first; i < getSize()/geteleSize(); i++)
-        {
-            std::cout << "Buf[" << i << "] = " << cpu_buf[i].x << " + i * " << cpu_buf[i].y << std::endl;
-        }
-    }
-    __host__
     void print(unsigned int first = 0)
     {
         T* cpu_buf = (T*)malloc(m_bSize);
         CUDA_CHECK(cudaMemcpy(cpu_buf, m_bValues, m_bSize, cudaMemcpyDeviceToHost));
-        for(int i = first; i < getSize()/geteleSize(); i++)
+        for(int i = first; i < num_elements; i++)
         {
-            std::cout << "Buf[" << i << "] = " << cpu_buf[i] << std::endl;
+            utils::msg("Buf[" + to_string(i) + "] = " + to_string(cpu_buf[i]));
         }
     }
-    __host__
-    void save(const char* filename = "vector.dat", unsigned width = 1, unsigned height = 1, unsigned depth = 1)
+
+    void save(const string filename = "vector.dat", unsigned width = 1, unsigned height = 1, unsigned depth = 1)
     {
+        string dir = "./results/data/vectors/%s" + filename;
+        FILE* fid = fopen(dir.c_str(), "wb");
         T* cpu_buf = (T*)malloc(m_bSize);
+
         CUDA_CHECK(cudaMemcpy(cpu_buf, m_bValues, m_bSize, cudaMemcpyDeviceToHost));
-        char dir[100];
-        sprintf(dir, "./results/data/%s", filename);
-        printf("DIR: %s", dir);
-        FILE* fid = fopen(dir, "wb");
+
         if(fid != NULL)
     	{
             fwrite(&depth, sizeof(unsigned), 1, fid);
             fwrite(&height, sizeof(unsigned), 1, fid);
             fwrite(&width, sizeof(unsigned), 1, fid);
-            fwrite(&eleSize, sizeof(unsigned), 1, fid);
+            fwrite(&type_size, sizeof(unsigned), 1, fid);
             fwrite(cpu_buf, sizeof(T), m_bSize, fid);
             fclose(fid);
         }
         else
         {
-            printf("Could not open file: %s\n", dir);
+            utils::msg("Could not open file: " + dir);
         }
     }
+
+    T* getDevPtr(int position = 0){return &m_bValues[position];}
+    size_t getSize(){return m_bSize;}
+    size_t gettype_size(){return type_size;}
 };
 
 #endif

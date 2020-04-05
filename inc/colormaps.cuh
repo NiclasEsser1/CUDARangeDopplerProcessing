@@ -1,7 +1,7 @@
 #ifndef COLORMAPS_CUH_
 #define COLORMAPS_CUH_
 
-#define JET_SIZE 9
+#define JET_SIZE 18
 #define VIRIDIS_SIZE 256
 #define ACCENT_SIZE 8
 #define BLUE_SIZE 8
@@ -9,14 +9,23 @@
 #define MAGMA_SIZE 257
 
 __device__ double colormap_jet[JET_SIZE][3] = {
+    {0.0, 0.0, 0.25},
     {0.0, 0.0, 0.5},
+    {0.0, 0.0, 0.75},
     {0.0, 0.0, 1.0},
+    {0.0, 0.25, 1.0},
     {0.0, 0.5, 1.0},
+    {0.0, 0.75, 1.0},
     {0.0, 1.0, 1.0},
+    {0.25, 1.0, 0.75},
     {0.5, 1.0, 0.5},
+    {0.75, 1.0, 0.25},
     {1.0, 1.0, 0.0},
+    {1.0, 0.75, 0.0},
     {1.0, 0.5, 0.0},
+    {1.0, 0.25, 0.0},
     {1.0, 0.0, 0.0},
+    {0.75, 0.0, 0.0},
     {0.5, 0.0, 0.0}
 };
 __device__ unsigned char colormap_blue[BLUE_SIZE][3] = {

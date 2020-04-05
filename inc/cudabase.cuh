@@ -1,11 +1,10 @@
 #ifndef CUDABASE_H_
 #define CUDABASE_H_
 
-#include <cuda.h>
-#include <cuda_runtime_api.h>
-#include <cufft.h>
-#include <libgpujpeg/gpujpeg.h>
-#include <nvjpeg.h>
+#include "cudagpu.cuh"
+#include "cudavector.cuh"
+#include "cudakernels.cuh"
+
 #include <stdio.h>
 #include <string>
 #include <stdlib.h>
@@ -13,43 +12,51 @@
 #include <fstream>  // jpeg delete later
 #include <iostream>
 
-#include "CudaGPU.cuh"
-#include "CudaVector.cuh"
-#include "CudaKernels.cuh"
-
 #define CUDA_CHECK_FFT(ans) {__cufftSafeCall((ans), __FILE__, __LINE__); }
 
 #define MAX_NOF_THREADS 1024
 #define TILE_DIM 32			// for transpose functions
 #define BLOCK_ROWS 8		// for transpose functions
-
-enum { HAMMING, HANN, BARTLETT, BLACKMAN };
-typedef enum { REAL, COMPLEX } numKind;
-typedef enum { JET, VIRIDIS, ACCENT, MAGMA, INFERNO, BLUE} color_t;
+// #define PRINT_KERNEL_LAUNCH 1
 
 const int blockSize1 = 2048;
 const int threads = 64;
+
+using namespace std;
 
 class CudaBase
 {
 private:
 	CudaGPU* device;
+	cudaStream_t jpeg_stream;
+	uint8_t *jpeg_image =NULL;
+	struct gpujpeg_encoder_input jpeg_encoder_input;
+	struct gpujpeg_parameters jpeg_param;
+	struct gpujpeg_image_parameters jpeg_param_image;
+	struct gpujpeg_encoder* jpeg_encoder;
 public:
 	CudaBase(CudaGPU* device);
 	~CudaBase();
+	void convert(short* idata, float* odata, int count);
 	void hilbertTransform(float* idata, cufftComplex* odata, int n, int batch);
     void absolute(cufftComplex* idata, float* odata, int width, int height);
     void r2c1dFFT(cufftComplex *odata, int n, int batch, cufftReal* idata = NULL );
     void c2c1dInverseFFT(cufftComplex* idata, int n, int batch);
     void c2c1dFFT(cufftComplex* idata, int n, int batch);
-	void mapColors(float* idata, unsigned char* odata, int width, int height, color_t type = JET);
+	void mapColors(float* idata, unsigned char* odata, int width, int height, int type = JET, int scale = LOG);
 	void hermitianTranspose(cufftComplex* odata, int width, int height, cufftComplex* idata = NULL);
 	void hermetianTransposeShared(cufftComplex* odata, int width, int height);
 	void fftshift(cufftComplex* data, int n, int batch = 1);
-	void encodeBmpToJpeg(unsigned char* idata, uint8_t* odata, int* p_jpeg_size, int width, int height);
+	void initJpegEncoder(int width, int height);
+	void encodeBmpToJpeg(unsigned char* idata, uint8_t* odata, int* p_jpeg_size, string path="");
+	void destroyJpegEncoder();
+	void random(cufftComplex* idata, int cnt, float mean = 0, float stddev = 0);
+	void random(float* idata, int cnt, float mean = 0, float stddev = 0);
+	void random(unsigned int* idata, int cnt);
+	template <typename T> void zeroFilling(T* idata, int row, int length, int height);
 	template <typename T> void transpose(T* odata, int width, int height, T* idata = NULL);
 	template <typename T> void transposeShared(T* data, int width, int height);
-	template <typename T> void window(T* idata, float* window, int width, int height);
+	template <typename T> void window(T* idata, float* window, int width, int height, int dim = 1);
 	template <typename T> T max(T* idata, int width, int height);
 	template <typename T> T min(T* idata, int width, int height);
 	void minMax(float* idata, float* odata, int num_els);

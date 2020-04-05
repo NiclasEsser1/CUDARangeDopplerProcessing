@@ -1,4 +1,4 @@
-#include "CudaBase.cuh"
+#include "cudabase.cuh"
 //#include <libgpujpeg/gpujpeg.h>
 /**
 _________
@@ -21,6 +21,9 @@ CudaBase::~CudaBase()
 
 void CudaBase::setWindow(float* idata, int win_len, int type, int height)
 {
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "Calculating window tabs" << endl;
+#endif
 	if(height == 0)
 	{
 	 	int tx = MAX_NOF_THREADS;
@@ -69,27 +72,52 @@ void CudaBase::setWindow(float* idata, int win_len, int type, int height)
 }
 
 template <typename T>
-void CudaBase::window(T* idata, float* window, int width, int height)
+void CudaBase::window(T* idata, float* window, int width, int height, int dim)
 {
+
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "windowing..." << endl;
+#endif
 	int tx = MAX_NOF_THREADS;
 	int bx = width/tx+1;
 	int by = height;
 
 	dim3 blockSize(tx);
 	dim3 gridSize(bx, by);
-	//printf("Performing windowing (real)... ");
-	windowKernel<<<gridSize,blockSize>>>(idata, window, width, height);
+	if(dim == 1)
+		windowKernel<<<gridSize,blockSize>>>(idata, window, width, height);
+	else if (dim == 2)
+		window2dKernel<<<gridSize,blockSize>>>(idata, window, width, height);
 	// CUDA_CHECK(cudaDeviceSynchronize());
 	//printf("done\n");
 }
-template void CudaBase::window<float>(float*, float*, int, int);
-template void CudaBase::window<cufftComplex>(cufftComplex*, float*, int, int);
+template void CudaBase::window<float>(float*, float*, int, int, int);
+template void CudaBase::window<cufftComplex>(cufftComplex*, float*, int, int, int);
+
+void CudaBase::convert(short* idata, float* odata, int count)
+{
+
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "converting float to short..." << endl;
+#endif
+	int tx = MAX_NOF_THREADS;
+	int bx = count / MAX_NOF_THREADS + 1;
+
+	dim3 blockSize(tx);
+	dim3 gridSize(bx);
+	convertKernel<<<gridSize,blockSize>>>(idata, odata, count);
+}
+
 
 /*
 *	Mathematical opertaions
 */
 void CudaBase::absolute(cufftComplex* idata, float* odata, int width, int height)
 {
+
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "calculatin absolute values of complex numbers..." << endl;
+#endif
 	int tx = MAX_NOF_THREADS;
 	int bx = width/tx+1;
 	int by = height;
@@ -104,6 +132,10 @@ void CudaBase::absolute(cufftComplex* idata, float* odata, int width, int height
 
 void CudaBase::hermitianTranspose(cufftComplex* odata, int width, int height, cufftComplex* idata)
 {
+
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "hermitian transposing... ";
+#endif
 	int tx = TILE_DIM;
 	int ty = TILE_DIM;
 	int bx = width/tx;
@@ -111,22 +143,35 @@ void CudaBase::hermitianTranspose(cufftComplex* odata, int width, int height, cu
 	dim3 blockSize(tx,ty);
 	dim3 gridSize(bx,by);
 	// If matrix is a square matrix
-	// if(width == height)
-	// {
-	// 	printf("transpose shared\n");
-	// 	hermetianTransposeSharedKernel<<<gridSize, blockSize>>>(odata);
-	// }
-	// else
+	if(width == height)
+	{
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "(transpose shared)" << endl;
+#endif
+		ty = BLOCK_ROWS;
+		bx = width/TILE_DIM;
+		by = height/TILE_DIM;
+		dim3 blockSize(tx,ty);
+		dim3 gridSize(bx,by);
+		hermetianTransposeSharedKernel<<<gridSize, blockSize>>>(odata);
+		return;
+	}
 	if(idata == NULL)
 	{
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "(temporary buffer)" << endl;
+#endif
 		CudaVector<cufftComplex>* temp = new CudaVector<cufftComplex>(device, width*height);
 		CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), odata, temp->getSize(), cudaMemcpyDeviceToDevice));
 		hermetianTransposeGlobalKernel<<<gridSize, blockSize>>>(temp->getDevPtr(), odata, width, height);
 		temp->freeMemory();
-		delete(temp);
+		//delete(temp);
 	}
 	else
 	{
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "(two buffers)" << endl;
+#endif
 		hermetianTransposeGlobalKernel<<<gridSize, blockSize>>>(idata, odata, width, height);
 	}
 	//CUDA_CHECK(cudaDeviceSynchronize());
@@ -135,6 +180,9 @@ void CudaBase::hermitianTranspose(cufftComplex* odata, int width, int height, cu
 
 void CudaBase::hermetianTransposeShared(cufftComplex* data, int width, int height)
 {
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "hermitian transposing (shared memory)... ";
+#endif
 	int tx = TILE_DIM;
 	int ty = BLOCK_ROWS;
 	int bx = width/TILE_DIM;
@@ -146,8 +194,12 @@ void CudaBase::hermetianTransposeShared(cufftComplex* data, int width, int heigh
 }
 
 
-template <typename T> void CudaBase::transpose(T* odata, int width, int height, T* idata)
+template <typename T>
+void CudaBase::transpose(T* odata, int width, int height, T* idata)
 {
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "transposing... ";
+#endif
 	int tx = 32;
 	int ty = 32;
 	int bx = width/tx+1;
@@ -157,14 +209,20 @@ template <typename T> void CudaBase::transpose(T* odata, int width, int height, 
 	//printf("Transposing buffer... ");
 	if(idata == NULL)
 	{
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "(temporary buffer)" << endl;
+#endif
 		CudaVector<T>* temp = new CudaVector<T>(device, width*height);
 		CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), odata, temp->getSize(), cudaMemcpyDeviceToDevice));
 		transposeGlobalKernel<<<gridSize, blockSize>>>(temp->getDevPtr(), odata, width, height);
 		temp->freeMemory();
-		delete(temp);
+		//delete(temp);
 	}
 	else
 	{
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "(two buffers)" << endl;
+#endif
 		transposeGlobalKernel<<<gridSize, blockSize>>>(idata, odata, width, height);
 	}
 	//CUDA_CHECK(cudaDeviceSynchronize());
@@ -174,8 +232,12 @@ template void CudaBase::transpose<float>(float*, int, int, float*);
 template void CudaBase::transpose<cufftComplex>(cufftComplex*, int, int, cufftComplex*);
 
 
-template <typename T> void CudaBase::transposeShared(T* data, int width, int height)
+template <typename T>
+void CudaBase::transposeShared(T* data, int width, int height)
 {
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "hermitian transposing (shared memory)... "  << endl;
+#endif
 	int tx = TILE_DIM;
 	int ty = BLOCK_ROWS;
 	int bx = width/TILE_DIM;
@@ -192,16 +254,22 @@ template void CudaBase::transposeShared<float>(float*,int,int);
 void CudaBase::fftshift(cufftComplex* data, int n, int batch)
 {
 	int tx = MAX_NOF_THREADS;
-	int bx = tx/n+1;
+	int bx = n/tx+1;
 	int by = batch;
 	dim3 blockSize(tx);
 	dim3 gridSize(bx,by);
 	if(batch > 1)
 	{
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "fftshift 2d... "  << endl;
+#endif
 		fftshift2d<<<gridSize, blockSize>>>(data, n, batch);
 	}
 	else
 	{
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "fftshift 1d... "  << endl;
+#endif
 		fftshift1d<<<gridSize, blockSize>>>(data, n);
 	}
 }
@@ -210,6 +278,9 @@ void CudaBase::fftshift(cufftComplex* data, int n, int batch)
 template <typename T>
 T CudaBase::max(T* idata, int width, int height)
 {
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "max values (slow))... "  << endl;
+#endif
 	int count = width*height;
 	int tx = MAX_NOF_THREADS;
 	int bx = count/tx;
@@ -221,11 +292,11 @@ T CudaBase::max(T* idata, int width, int height)
 	CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), idata, temp->getSize(), cudaMemcpyDeviceToDevice));
 
 	maxKernel<T><<<gridSize, blockSize>>>(temp->getDevPtr(), count);
-	CUDA_CHECK(cudaDeviceSynchronize());
+	//CUDA_CHECK(cudaDeviceSynchronize());
 
 	CUDA_CHECK(cudaMemcpy(&max_val, temp->getDevPtr(0), sizeof(T), cudaMemcpyDeviceToHost));
 	temp->freeMemory();
-	delete(temp);
+	//delete(temp);
 	return max_val;
 }
 template float CudaBase::max<float>(float*, int, int);
@@ -237,6 +308,9 @@ template double CudaBase::max<double>(double*, int, int);
 template <typename T>
 T CudaBase::min(T* idata, int width, int height)
 {
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "min values (slow))... "  << endl;
+#endif
 	int count = width*height;
 	int tx = MAX_NOF_THREADS;
 	int bx = count/tx;
@@ -248,11 +322,11 @@ T CudaBase::min(T* idata, int width, int height)
 	CUDA_CHECK(cudaMemcpy(temp->getDevPtr(), idata, temp->getSize(), cudaMemcpyDeviceToDevice));
 
 	minKernel<T><<<gridSize, blockSize>>>(temp->getDevPtr(), count);
-	CUDA_CHECK(cudaDeviceSynchronize());
+	//CUDA_CHECK(cudaDeviceSynchronize());
 
 	CUDA_CHECK(cudaMemcpy(&min_val, temp->getDevPtr(0), sizeof(T), cudaMemcpyDeviceToHost));
 	temp->freeMemory();
-	delete(temp);
+	//delete(temp);
 	return min_val;
 }
 template float CudaBase::min<float>(float*, int, int);
@@ -280,7 +354,9 @@ void CudaBase::findBlockSize(int* whichSize, int* num_el)
 
 void CudaBase::minMax(float* idata, float* odata, int num_els)
 {
-
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "max & min values (fast)... "  << endl;
+#endif
 	int whichSize = -1;
 	findBlockSize(&whichSize,&num_els);
 
@@ -304,93 +380,149 @@ void CudaBase::minMax(float* idata, float* odata, int num_els)
 /*
 *	Image processing
 */
-void CudaBase::encodeBmpToJpeg(unsigned char* idata, uint8_t* odata, int* p_jpeg_size, int width, int height)
+void CudaBase::initJpegEncoder(int width, int height)
 {
-	static int image_num = -1;
-	char image_dir[256];
-	cudaStream_t stream;
-	uint8_t* image = NULL;
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "init jpg encoder... "  << endl;
+#endif
+	CUDA_CHECK(cudaStreamCreate(&jpeg_stream));
+	jpeg_encoder = gpujpeg_encoder_create(&jpeg_stream);
 
+	//
+	gpujpeg_set_default_parameters(&jpeg_param);
+	jpeg_param.quality = 80;
+	jpeg_param.restart_interval = 16;
+	jpeg_param.interleaved = 1;
 
-	CUDA_CHECK(cudaStreamCreate(&stream));
-	image_num++;
-	struct gpujpeg_encoder_input encoder_input;
-	struct gpujpeg_parameters param;
-	struct gpujpeg_image_parameters param_image;
-	struct gpujpeg_encoder* encoder = gpujpeg_encoder_create(&stream);
-
-	sprintf(image_dir, "/home/niclas/SoftwareProjekte/Cuda/PerformanceComparsion/results/img/streaming/jpeg/CH%d_%d.jpg", image_num%4, image_num/4);
-	gpujpeg_set_default_parameters(&param);
-	param.quality = 80;
-	param.restart_interval = 16;
-	param.interleaved = 1;
-
-	gpujpeg_image_set_default_parameters(&param_image);
-	param_image.width = width;
-	param_image.height = height;
-	param_image.comp_count = 3;
-	param_image.color_space = GPUJPEG_RGB;
-	param_image.pixel_format = GPUJPEG_444_U8_P012;
+	gpujpeg_image_set_default_parameters(&jpeg_param_image);
+	jpeg_param_image.width = width;
+	jpeg_param_image.height = height;
+	jpeg_param_image.comp_count = 3;
+	jpeg_param_image.color_space = GPUJPEG_RGB;
+	jpeg_param_image.pixel_format = GPUJPEG_444_U8_P012;
 
 	// Use default sampling factors
-	gpujpeg_parameters_chroma_subsampling_422(&param);
-	if ( encoder == NULL )
-		encoder = gpujpeg_encoder_create(&stream);
+	gpujpeg_parameters_chroma_subsampling_422(&jpeg_param);
+	if ( jpeg_encoder == NULL )
+		jpeg_encoder = gpujpeg_encoder_create(&jpeg_stream);
 
-	gpujpeg_encoder_input_set_image(&encoder_input, idata);
-	gpujpeg_encoder_encode(encoder, &param, &param_image, &encoder_input, &image, p_jpeg_size);
-	gpujpeg_image_save_to_file(image_dir, image, *p_jpeg_size);
-	CUDA_CHECK(cudaStreamSynchronize(stream));
+}
+void CudaBase::encodeBmpToJpeg(unsigned char* idata, uint8_t* odata, int* p_jpeg_size, string path)
+{
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "encode bmp -> jpg... "  << endl;
+#endif
+	static int image_num = 0;
+	uint8_t* jpeg_image = NULL;
+	gpujpeg_encoder_input_set_image(&jpeg_encoder_input, idata);
+	gpujpeg_encoder_encode(jpeg_encoder, &jpeg_param, &jpeg_param_image, &jpeg_encoder_input, &jpeg_image, p_jpeg_size);
+	CUDA_CHECK(cudaStreamSynchronize(jpeg_stream));
 
 	// odata = (uint8_t*) malloc(*p_jpeg_size);
 	if(odata != nullptr)
-		memcpy((void*)odata, (void*)image, *p_jpeg_size);
+		memcpy((void*)odata, (void*)jpeg_image, *p_jpeg_size);
 	else
-		printf("Could not allocated memory for jpeg image\n");
-
-	CUDA_CHECK(cudaStreamDestroy(stream));
-	gpujpeg_image_destroy(image);
-	gpujpeg_encoder_destroy(encoder);
+		printf("Could not allocated memory for jpeg jpeg_image\n");
+	if(path != "")
+		gpujpeg_image_save_to_file((path+".jpg").c_str(), (uint8_t*)jpeg_image, *p_jpeg_size);
+	//CUDA_CHECK(cudaStreamDestroy(jpeg_stream));
+	image_num++;
 }
 
+void CudaBase::destroyJpegEncoder()
+{
+	CUDA_CHECK(cudaStreamDestroy(jpeg_stream));
+	gpujpeg_image_destroy(jpeg_image);
+	gpujpeg_encoder_destroy(jpeg_encoder);
+}
 
-void CudaBase::mapColors(float* idata, unsigned char* odata, int width, int height, color_t type)
+void CudaBase::random(cufftComplex* idata, int cnt, float mean, float stddev)
+{
+	curandGenerator_t gen;
+	CURAND_CALL(curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT));
+    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, 1234ULL));
+	if(mean == 0)
+	{
+
+		CURAND_CALL(curandGenerateUniform(gen, (float*)&idata[0].x, cnt));
+		CURAND_CALL(curandGenerateUniform(gen, (float*)&idata[0].y, cnt));
+	}
+	else
+	{
+		CURAND_CALL(curandGenerateNormal(gen, (float*)&idata[0].x, cnt,mean, stddev));
+		CURAND_CALL(curandGenerateNormal(gen, (float*)&idata[0].y, cnt,mean, stddev));
+	}
+	CURAND_CALL(curandDestroyGenerator(gen));
+}
+
+void CudaBase::random(float* idata, int cnt, float mean, float stddev)
+{
+	curandGenerator_t gen;
+	CURAND_CALL(curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT));
+    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, 1234ULL));
+	if(mean == 0)
+	{
+		CURAND_CALL(curandGenerateUniform(gen, idata, cnt));
+	}
+	else
+	{
+		CURAND_CALL(curandGenerateNormal(gen, idata, cnt,mean, stddev));
+	}
+	CURAND_CALL(curandDestroyGenerator(gen));
+}
+
+void CudaBase::random(unsigned int* idata, int cnt)
+{
+	curandGenerator_t gen;
+	CURAND_CALL(curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT));
+    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, 1234ULL));
+	CURAND_CALL(curandGenerate(gen, idata, cnt));
+	CURAND_CALL(curandDestroyGenerator(gen));
+}
+
+void CudaBase::mapColors(float* idata, unsigned char* odata, int width, int height, int type, int scale)
 {
 	int tx = 32;
 	int ty = 32;
 	int bx = width/tx+1;
 	int by = height/ty+1;
 
-	float max_v;
-	float min_v;
-
+	float max;
+	float min;
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "map colors... " << endl;
+#endif
 	CudaVector<float>* temp = new CudaVector<float>(device, width*height);
 	minMax(idata, temp->getDevPtr(), width*height);
-	cudaMemcpy(&min_v, temp->getDevPtr(0), sizeof(float), cudaMemcpyDeviceToHost);
-	cudaMemcpy(&max_v, temp->getDevPtr(1), sizeof(float), cudaMemcpyDeviceToHost);
+	CUDA_CHECK(cudaMemcpy(&min, temp->getDevPtr(0), sizeof(float), cudaMemcpyDeviceToHost));
+	CUDA_CHECK(cudaMemcpy(&max, temp->getDevPtr(1), sizeof(float), cudaMemcpyDeviceToHost));
 	temp->freeMemory();
-	delete(temp);
+	//delete(temp);
 	dim3 blockSize(tx,ty);
 	dim3 gridSize(bx,by);
-
 	switch(type)
 	{
 		case JET:
-			colormapJet<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
+			colormapJet<<<gridSize,blockSize>>>(idata, odata, max, min, width, height, scale);
 			break;
 		case VIRIDIS:
-			colormapViridis<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
+			colormapViridis<<<gridSize,blockSize>>>(idata, odata, max, min, width, height, scale);
+			break;
 		case ACCENT:
-			colormapAccent<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
+			colormapAccent<<<gridSize,blockSize>>>(idata, odata, max, min, width, height, scale);
+			break;
 		case MAGMA:
-			colormapMagma<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
+			colormapMagma<<<gridSize,blockSize>>>(idata, odata, max, min, width, height, scale);
 			break;
 		case INFERNO:
-			colormapInferno<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
+			colormapInferno<<<gridSize,blockSize>>>(idata, odata, max, min, width, height, scale);
 			break;
 		case BLUE:
-			colormapBlue<<<gridSize,blockSize>>>(idata, odata, max_v, min_v, width, height);
+			colormapBlue<<<gridSize,blockSize>>>(idata, odata, max, min, width, height, scale);
 			break;
+		default:
+			cout << "This colormapping is not provided" << endl;
+
 	}
 }
 
@@ -401,6 +533,9 @@ void CudaBase::mapColors(float* idata, unsigned char* odata, int width, int heig
 
 void CudaBase::r2c1dFFT(cufftComplex* odata, int n, int batch, cufftReal* idata)
 {
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "Real -> complex FFT (1d)... "  << endl;
+#endif
 	//printf("Performing 1D FFT (r2c)... ");
 	cufftHandle plan;
 	// Plan for FFT
@@ -419,6 +554,9 @@ void CudaBase::r2c1dFFT(cufftComplex* odata, int n, int batch, cufftReal* idata)
 
 void CudaBase::c2c1dInverseFFT(cufftComplex* idata, int n, int batch)
 {
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "complex -> complex IFFT (1d)... "  << endl;
+#endif
 	//printf("Performing 1D inverse FFT (c2c)... ");
 	cufftHandle plan;
 	// Plan for FFT
@@ -430,6 +568,9 @@ void CudaBase::c2c1dInverseFFT(cufftComplex* idata, int n, int batch)
 
 void CudaBase::c2c1dFFT(cufftComplex* idata, int n, int batch)
 {
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "complex -> complex FFT (1d)... "  << endl;
+#endif
 	//printf("Performing 1D FFT (c2c)... ");
 	cufftHandle plan;
 	// Plan for FFT
@@ -458,13 +599,30 @@ void CudaBase::r2cManyFFT(float* idata, cufftComplex *odata, int *nfft, int  ran
 
 void CudaBase::hilbertTransform(float* idata, cufftComplex* odata, int n, int batch)
 {
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "hilbertransform... "  << endl;
+#endif
 	//printf("Performing hilbert transform... \n");
 	r2c1dFFT(odata, n, batch, idata);
 	c2c1dInverseFFT(odata, n/2+1, batch);
 	//printf("done\n");
 }
 
-
+template <typename T>
+void CudaBase::zeroFilling(T* idata, int row, int length, int height)
+{
+#ifdef PRINT_KERNEL_LAUNCH
+	cout << "zero filling... "  << endl;
+#endif
+	int tx = MAX_NOF_THREADS;
+	int bx = tx/length+1;
+	int by = height;
+	dim3 blockSize(tx);
+	dim3 gridSize(bx,by);
+	zeroFillingKernel<<<gridSize,blockSize>>>(idata, row, length, height);
+}
+template void CudaBase::zeroFilling<float>(float*, int, int, int);
+template void CudaBase::zeroFilling<cufftComplex>(cufftComplex*, int, int, int);
 
 void CudaBase::printWindowTaps(float* idata, int win_len)
 {

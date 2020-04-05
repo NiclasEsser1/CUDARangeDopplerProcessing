@@ -1,4 +1,4 @@
-#include "CudaKernels.cuh"
+#include "cudakernels.cuh"
 
 
 
@@ -7,7 +7,6 @@ __global__ void windowHamming(float* idata, int length)
 	int tidx = threadIdx.x + blockIdx.x*blockDim.x;
 	if (tidx < length)
 	{
-	printf("tidx:%d", tidx);
 		idata[tidx] = 0.54 - 0.46 * cos(2*tidx*PI_F / (length - 1));
 	}
 }
@@ -97,6 +96,31 @@ __global__ void windowKernel(cufftComplex* idata, float* window, int width, int 
 		idata[tidy * width + tidx].x = window[tidx] * idata[tidy * width + tidx].x;
 		idata[tidy * width + tidx].y = window[tidx] * idata[tidy * width + tidx].y;
 	}
+}
+__global__ void window2dKernel(cufftComplex* idata, float* window, int width, int height)
+{
+	int tidx = threadIdx.x + blockIdx.x*blockDim.x;
+	int tidy = threadIdx.y + blockIdx.y*blockDim.y;
+	if(tidx < width && tidy < height)
+	{
+		idata[tidy * width + tidx].x = window[tidy * width + tidx] * idata[tidy * width + tidx].x;
+		idata[tidy * width + tidx].y = window[tidy * width + tidx] * idata[tidy * width + tidx].y;
+	}
+}
+__global__ void window2dKernel(float* idata, float* window, int width, int height)
+{
+	int tidx = threadIdx.x + blockIdx.x*blockDim.x;
+	int tidy = threadIdx.y + blockIdx.y*blockDim.y;
+	if(tidx < width && tidy < height)
+	{
+		idata[tidy * width + tidx] = window[tidy * width + tidx] * idata[tidy * width + tidx];
+	}
+}
+__global__ void convertKernel(short* idata, float* odata, int size)
+{
+	int tidx = threadIdx.x + blockIdx.x*blockDim.x;
+	if(tidx < size)
+		odata[tidx] = (float)idata[tidx];
 }
 
 __global__ void transposeGlobalKernel(float* idata, float* odata, int width, int height)
@@ -233,27 +257,64 @@ __global__ void absoluteKernel(cufftComplex* idata, float* odata, int width, int
 
 
 
-__global__ void colormapJet(float* idata, unsigned char* odata, float max, float min, int width, int height)
+__global__ void colormapJet(float* idata, unsigned char* odata, float max, float min, int width, int height, int scale)
 {
 	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
-	int colormap_index = (int)((idata[tidx + width*tidy]-min)/(max-min)*(JET_SIZE-1));
-
+	int colormap_index;
 	if(tidx < width && tidy < height)
 	{
+		if(scale == LOG)
+		{
+			if(idata[tidx + width*tidy] > min)
+			{
+				colormap_index = (int)(logf(idata[tidx + width*tidy]-min)/(logf(max-min))*(JET_SIZE-1));
+			}
+			else if (idata[tidx + width*tidy] == min)
+			{
+				colormap_index = 0;
+			}
+		}
+		else if(scale == LINEAR)
+		{
+			colormap_index = (int)(idata[tidx + width*tidy]-min)/(max-min)*(JET_SIZE-1);
+		}
+		if(colormap_index > JET_SIZE-1)
+		{
+			colormap_index = JET_SIZE-1;
+		}
 		odata[(tidx + width * tidy) * 3 + 0] = (unsigned char)255*colormap_jet[colormap_index][0];
 		odata[(tidx + width * tidy) * 3 + 1] = (unsigned char)255*colormap_jet[colormap_index][1];
 		odata[(tidx + width * tidy) * 3 + 2] = (unsigned char)255*colormap_jet[colormap_index][2];
 	}
 }
 
-__global__ void colormapViridis(float* idata, unsigned char* odata, float max, float min, int width, int height)
+__global__ void colormapViridis(float* idata, unsigned char* odata, float max, float min, int width, int height, int scale)
 {
 	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
 	int colormap_index = (int)(idata[tidx + width*tidy]-min)/(max-min)*(VIRIDIS_SIZE-1);
 	if(tidx < width && tidy < height)
 	{
+		if(scale == LOG)
+		{
+			if(idata[tidx + width*tidy] > min)
+			{
+				colormap_index = (int)(logf(idata[tidx + width*tidy]-min)/(logf(max-min))*(VIRIDIS_SIZE-1));
+			}
+			else if (idata[tidx + width*tidy] == min)
+			{
+				colormap_index = 0;
+			}
+		}
+		else if(scale == LINEAR)
+		{
+			colormap_index = (int)(idata[tidx + width*tidy]-min)/(max-min)*(VIRIDIS_SIZE-1);
+		}
+		if(colormap_index > VIRIDIS_SIZE-1)
+		{
+			colormap_index = VIRIDIS_SIZE-1;
+		}
 		odata[(tidx + width*tidy) * 3 + 0] = (unsigned char)255*colormap_viridis[colormap_index][0];
 		odata[(tidx + width*tidy) * 3 + 1] = (unsigned char)255*colormap_viridis[colormap_index][1];
 		odata[(tidx + width*tidy) * 3 + 2] = (unsigned char)255*colormap_viridis[colormap_index][2];
@@ -261,52 +322,128 @@ __global__ void colormapViridis(float* idata, unsigned char* odata, float max, f
 }
 
 
-__global__ void colormapAccent(float* idata, unsigned char* odata, float max, float min, int width, int height)
+__global__ void colormapAccent(float* idata, unsigned char* odata, float max, float min, int width, int height, int scale)
 {
 	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
 	int colormap_index = (int)(idata[tidx + width*tidy]-min)/(max-min)*(ACCENT_SIZE-1);
 	if(tidx < width && tidy < height)
 	{
+		if(scale == LOG)
+		{
+			if(idata[tidx + width*tidy] > min)
+			{
+				colormap_index = (int)(logf(idata[tidx + width*tidy]-min)/(logf(max-min))*(ACCENT_SIZE-1));
+			}
+			else if (idata[tidx + width*tidy] == min)
+			{
+				colormap_index = 0;
+			}
+		}
+		else if(scale == LINEAR)
+		{
+			colormap_index = (int)(idata[tidx + width*tidy]-min)/(max-min)*(ACCENT_SIZE-1);
+		}
+		if(colormap_index > ACCENT_SIZE-1)
+		{
+			colormap_index = ACCENT_SIZE-1;
+		}
 		odata[(tidx + width*tidy) * 3 + 0] = colormap_accent[colormap_index][0];
 		odata[(tidx + width*tidy) * 3 + 1] = colormap_accent[colormap_index][1];
 		odata[(tidx + width*tidy) * 3 + 2] = colormap_accent[colormap_index][2];
 	}
 }
 
-__global__ void colormapMagma(float* idata, unsigned char* odata, float max, float min, int width, int height)
+__global__ void colormapMagma(float* idata, unsigned char* odata, float max, float min, int width, int height, int scale)
 {
 	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
-	int colormap_index = (int)((idata[tidx + width*tidy]-min)/(max-min)*(MAGMA_SIZE-1));
+	int colormap_index;
 	if(tidx < width && tidy < height)
 	{
+		if(scale == LOG)
+		{
+			if(idata[tidx + width*tidy] > min)
+			{
+				colormap_index = (int)(logf(idata[tidx + width*tidy]-min)/(logf(max-min))*(MAGMA_SIZE-1));
+			}
+			else if (idata[tidx + width*tidy] == min)
+			{
+				colormap_index = 0;
+			}
+		}
+		else if(scale == LINEAR)
+		{
+			colormap_index = (int)(idata[tidx + width*tidy]-min)/(max-min)*(MAGMA_SIZE-1);
+		}
+		if(colormap_index > MAGMA_SIZE-1)
+		{
+			colormap_index = MAGMA_SIZE-1;
+		}
 		odata[(tidx + width*tidy) * 3 + 0] = (unsigned char)255*colormap_magma[colormap_index][0];
 		odata[(tidx + width*tidy) * 3 + 1] = (unsigned char)255*colormap_magma[colormap_index][1];
 		odata[(tidx + width*tidy) * 3 + 2] = (unsigned char)255*colormap_magma[colormap_index][2];
 	}
 }
 
-__global__ void colormapInferno(float* idata, unsigned char* odata, float max, float min, int width, int height)
+__global__ void colormapInferno(float* idata, unsigned char* odata, float max, float min, int width, int height, int scale)
 {
 	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
 	int colormap_index = (int)(idata[tidx + width*tidy]-min)/(max-min)*(INFERNO_SIZE-1);
 	if(tidx < width && tidy < height)
 	{
+		if(scale == LOG)
+		{
+			if(idata[tidx + width*tidy] > min)
+			{
+				colormap_index = (int)(logf(idata[tidx + width*tidy]-min)/(logf(max-min))*(INFERNO_SIZE-1));
+			}
+			else if (idata[tidx + width*tidy] == min)
+			{
+				colormap_index = 0;
+			}
+		}
+		else if(scale == LINEAR)
+		{
+			colormap_index = (int)(idata[tidx + width*tidy]-min)/(max-min)*(INFERNO_SIZE-1);
+		}
+		if(colormap_index > INFERNO_SIZE-1)
+		{
+			colormap_index = INFERNO_SIZE-1;
+		}
 		odata[(tidx + width*tidy) * 3 + 0] = (unsigned char)255*colormap_inferno[colormap_index][0];
 		odata[(tidx + width*tidy) * 3 + 1] = (unsigned char)255*colormap_inferno[colormap_index][1];
 		odata[(tidx + width*tidy) * 3 + 2] = (unsigned char)255*colormap_inferno[colormap_index][2];
 	}
 }
 
-__global__ void colormapBlue(float* idata, unsigned char* odata, float max, float min, int width, int height)
+__global__ void colormapBlue(float* idata, unsigned char* odata, float max, float min, int width, int height, int scale)
 {
 	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 	int tidy = blockIdx.y * blockDim.y + threadIdx.y;
-	int colormap_index = (int)(idata[tidx + width*tidy]-min)/(max-min)*(BLUE_SIZE-1);
+	int colormap_index;
 	if(tidx < width && tidy < height)
 	{
+		if(scale == LOG)
+		{
+			if(idata[tidx + width*tidy] > min)
+			{
+				colormap_index = (int)(logf(idata[tidx + width*tidy]-min)/(logf(max-min))*(BLUE_SIZE-1));
+			}
+			else if (idata[tidx + width*tidy] == min)
+			{
+				colormap_index = 0;
+			}
+		}
+		else if(scale == LINEAR)
+		{
+			colormap_index = (int)(idata[tidx + width*tidy]-min)/(max-min)*(BLUE_SIZE-1);
+		}
+		if(colormap_index > BLUE_SIZE-1)
+		{
+			colormap_index = BLUE_SIZE-1;
+		}
 		odata[(tidx + width*tidy) * 3 + 0] = colormap_blue[colormap_index][0];
 		odata[(tidx + width*tidy) * 3 + 1] = colormap_blue[colormap_index][1];
 		odata[(tidx + width*tidy) * 3 + 2] = colormap_blue[colormap_index][2];
@@ -556,3 +693,33 @@ template __global__ void find_min_max<4096, 64>(float*, float*);
 template __global__ void find_min_max<8192, 64>(float*, float*);
 template __global__ void find_min_max<16384, 64>(float*, float*);
 template __global__ void find_min_max<32768, 64>(float*, float*);
+
+
+__global__ void zeroFillingKernel(float* idata, int row, int length, int height)
+{
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int tidy = blockIdx.y * blockDim.y;
+	if(tidx < length &&  tidy < height)
+	{
+		//printf("idata[%d][%d]: = %f\n", (row+tidy), tidx,idata[tidx + (row+tidy) *length]);
+		idata[tidx + (row+tidy) *length] = 0;
+		idata[tidx + (row-tidy) *length] = 0;
+		//printf("idata[%d][%d]: = %f\n", (row+tidy), tidx,idata[tidx + (row+tidy) *length]);
+
+	}
+}
+
+__global__ void zeroFillingKernel(cufftComplex* idata, int row, int length, int height)
+{
+	int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int tidy = blockIdx.y * blockDim.y;
+	if(tidx < length && tidy < height)
+	{
+		//printf("idata[%d][%d]: = %f + i*%f\n", (row+tidy), tidx,idata[tidx + (row+tidy) *length].x, idata[tidx + (row+tidy) *length].y);
+		idata[tidx + (row+tidy) *length].x = 0;
+		idata[tidx + (row+tidy) *length].y = 0;
+		idata[tidx + (row-tidy) *length].x = 0;
+		idata[tidx + (row-tidy) *length].y = 0;
+		//printf("idata[%d][%d]: = %f + i*%f\n", (row+tidy), tidx,idata[tidx + (row+tidy) *length].x, idata[tidx + (row+tidy) *length].y);
+	}
+}

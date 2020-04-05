@@ -1,12 +1,12 @@
 #ifndef CUDATEST_H_
 #define CUDATEST_H_
 
-#include "CudaGPU.cuh"
-#include "CudaKernels.cuh"
-#include "CudaBase.cuh"
-#include "CudaVector.cuh"
-#include "Bitmap_IO.h"
-#include "SignalGenerator.h"
+#include "cudagpu.cuh"
+#include "cudabase.cuh"
+#include "cudaalgorithm.cuh"
+#include "cudavector.cuh"
+#include "bitmap_io.h"
+#include "signalgenerator.h"
 
 #include <stdio.h>
 //#include <stdlib.h>     /* exit, EXIT_FAILURE */
@@ -44,8 +44,8 @@ public:
         signal.save("noisy_sinus.dat");
         success = validate_max(signal.getSignal(), x_size, y_size);
         success = validate_min(signal.getSignal(), x_size, y_size);
-        success = validate_inplaceTransposeShared(x_size, y_size);
-        success = validate_inplaceHermetianTransposeShared(x_size, y_size);
+        // success = validate_renderJet(signal.getSignal(), x_size, y_size);
+
 
         if(success == TEST_SUCCED)
             return true;
@@ -117,45 +117,45 @@ protected:
         printf("\n\nTesting rangeDopplerMap(complex) function... \n");
         if(object->initDeviceEnv())
         {
-            object->rangeDopplerMap(idata, image_cplx.GetImagePtr(),HAMMING, COMPLEX, JET);
+            object->rangeDopplerMap(idata, image_cplx.getImagePtr(),HAMMING, JET);
             object->saveVector(object->charBuffer, "./results/data/processed_cplx.dat");
-            image_cplx.Save("./results/img/colormap_examples/rdm_jet_complex.bmp");
+            image_cplx.save("./results/img/colormap_examples/rdm_jet_complex.bmp");
             object->freeMemory();
         }
         sleep(1);
         printf("\n\nTesting rangeDopplerMap(real) function... \n");
         if(object->initDeviceEnv())
         {
-            object->rangeDopplerMap(idata, image_real.GetImagePtr(), HAMMING, REAL, BLUE);
+            object->rangeDopplerMap(idata, image_real.getImagePtr(), HAMMING, BLUE);
             object->saveVector(object->charBuffer, "results/data/processed_real.dat");
-            image_real.Save("./results/img/colormap_examples/rdm_blue_real.bmp");
+            image_real.save("./results/img/colormap_examples/rdm_blue_real.bmp");
             object->freeMemory();
         }
         sleep(1);
         printf("\n\nTesting rangeDopplerMap(real) function... \n");
         if(object->initDeviceEnv())
         {
-            object->rangeDopplerMap(idata, image_real.GetImagePtr(), HAMMING, REAL, VIRIDIS);
+            object->rangeDopplerMap(idata, image_real.getImagePtr(), HAMMING, VIRIDIS);
             object->saveVector(object->charBuffer, "results/data/processed_real.dat");
-            image_real.Save("./results/img/colormap_examples/rdm_viridis_real.bmp");
+            image_real.save("./results/img/colormap_examples/rdm_viridis_real.bmp");
             object->freeMemory();
         }
         sleep(1);
         printf("\n\nTesting rangeDopplerMap(real) function... \n");
         if(object->initDeviceEnv())
         {
-            object->rangeDopplerMap(idata, image_real.GetImagePtr(), HAMMING, REAL, MAGMA);
+            object->rangeDopplerMap(idata, image_real.getImagePtr(), HAMMING, MAGMA);
             object->saveVector(object->charBuffer, "results/data/processed_real.dat");
-            image_real.Save("./results/img/colormap_examples/rdm_magma_real.bmp");
+            image_real.save("./results/img/colormap_examples/rdm_magma_real.bmp");
             object->freeMemory();
         }
         sleep(1);
         printf("\n\nTesting rangeDopplerMap(real) function... \n");
         if(object->initDeviceEnv())
         {
-            object->rangeDopplerMap(idata, image_real.GetImagePtr(), HAMMING, REAL, INFERNO);
+            object->rangeDopplerMap(idata, image_real.getImagePtr(), HAMMING, INFERNO);
             object->saveVector(object->charBuffer, "results/data/processed_real.dat");
-            image_real.Save("./results/img/colormap_examples/rdm_inferno_real.bmp");
+            image_real.save("./results/img/colormap_examples/rdm_inferno_real.bmp");
             object->freeMemory();
         }
         return TEST_SUCCED;
@@ -236,119 +236,6 @@ protected:
     	return TEST_SUCCED;
     }
 
-    int validate_transpose(const float *mat, const float *mat_t, int width, int height)
-    {
-        int result = 1;
-        for (int i = 0; i < height; i++)
-            for (int j = 0; j < width; j++)
-                if (mat[(i*width)+j] != mat_t[(j*height)+i]){result = 0;}
-        return result;
-    }
-
-    testCode validate_inplaceTransposeShared(int width, int height)
-    {
-        printf("\n\nTesting inplaceTransposeShared() function... \n");
-        float *d_matrix;
-        float *matrix = (float*) malloc (width * height * sizeof(float));
-        float *matrixT = (float *) malloc (width * height * sizeof(float));
-        float *h_matrixT = (float *) malloc (width * height * sizeof(float));
-
-
-        for (int i = 0; i < height; i ++)
-            for (int j = 0; j < width; j++)
-            {
-                matrix[(i*width) + j] = i;
-            }
-
-        for (int i = 0; i < height; i++)
-            for (int j = 0; j < width; j++)
-            {
-                matrixT[(j*height)+i] = matrix[(i*width)+j]; // matrix transpose
-            }
-        cudaMalloc(&d_matrix, width * height * sizeof(float));
-        cudaMemcpy(d_matrix, matrix, width * height * sizeof(float) , cudaMemcpyHostToDevice);
-        CUDA_CHECK(cudaDeviceSynchronize());
-        object->transposeShared(d_matrix, width, height);
-        cudaMemcpy(h_matrixT , d_matrix , width * height * sizeof(float) , cudaMemcpyDeviceToHost);
-        printf("Matrix %dx%d; size %lu \n", width,height, width*height*sizeof(float));
-        FILE* fid;
-        fid = fopen("./results/data/matrix_transpose_cpu.dat", "wb");
-        fwrite(&width, sizeof(int), 1, fid);
-        fwrite(&height, sizeof(int), 1, fid);
-        fwrite(matrix, sizeof(float), width * height, fid);
-        fclose(fid);
-        sleep(1);
-        fid = fopen("./results/data/matrix_transpose_gpu.dat", "wb");
-        fwrite(&height, sizeof(int), 1, fid);
-        fwrite(&width, sizeof(int), 1, fid);
-        fwrite(h_matrixT, sizeof(float), width*height, fid);
-        fclose(fid);
-
-        if (!validate_transpose(matrix, matrixT, width, height)) {printf("failed: compared matices on host!\n"); return TEST_FAILED;}
-        if (!validate_transpose(matrix, h_matrixT, width, height)) {printf("failed: compared matrices after kernel call!\n"); return TEST_FAILED;}
-        cudaFree(d_matrix);
-        printf("Test passed\n");
-        return TEST_SUCCED;
-    }
-
-    int validate_hermetianTranspose(const cufftComplex *mat, const cufftComplex *mat_t, int n, int m)
-    {
-        int result = 1;
-        for (int i = 0; i < n; i++)
-            for (int j = 0; j < m; j++)
-                if (mat[(i*m)+j].x != mat_t[(j*n)+i].x || mat[(i*m)+j].y != (-1)*mat_t[(j*n)+i].y){result = 0;}
-        return result;
-    }
-
-    testCode validate_inplaceHermetianTransposeShared(int width, int height)
-    {
-        printf("\n\nTesting hermitianTransposeShared() function... \n");
-        cufftComplex *d_matrix;
-        cufftComplex *matrix = (cufftComplex*) malloc (width * height * sizeof(cufftComplex));
-        cufftComplex *matrixT = (cufftComplex *) malloc (width * height * sizeof(cufftComplex));
-        cufftComplex *h_matrixT = (cufftComplex *) (malloc (width * height * sizeof(cufftComplex)));
-
-
-        for (int i = 0; i < height; i ++)
-            for (int j = 0; j < width; j++)
-            {
-                matrix[(i*width) + j].x = i;
-                matrix[(i*width) + j].y = 2*i;
-            }
-
-        for (int i = 0; i < height; i++)
-            for (int j = 0; j < width; j++)
-            {
-                matrixT[(j*height)+i].x = matrix[(i*width)+j].x; // matrix is obviously filled
-                matrixT[(j*height)+i].y = (-1)*matrix[(i*width)+j].y; // matrix is obviously filled
-            }
-        cudaMalloc(&d_matrix, width * height * sizeof(cufftComplex));
-        cudaMemcpy(d_matrix, matrix, width * height * sizeof(cufftComplex) , cudaMemcpyHostToDevice);
-        CUDA_CHECK(cudaDeviceSynchronize());
-        object->hermitianTranspose(d_matrix, width, height);
-        CUDA_CHECK(cudaDeviceSynchronize());
-        cudaMemcpy(h_matrixT , d_matrix , width * height * sizeof(cufftComplex) , cudaMemcpyDeviceToHost);
-
-        FILE* fid;
-        fid = fopen("./results/data/matrix_hermetiantranspose_cpu.dat", "wb");
-        fwrite(&width, sizeof(int), 1, fid);
-        fwrite(&height, sizeof(int), 1, fid);
-        fwrite(matrix, sizeof(cufftComplex), width*height, fid);
-        fclose(fid);
-        fid = fopen("./results/data/matrix_hermetiantranspose_gpu.dat", "wb");
-        fwrite(&height, sizeof(int), 1, fid);
-        fwrite(&width, sizeof(int), 1, fid);
-        fwrite(h_matrixT, sizeof(cufftComplex), width*height, fid);
-        fclose(fid);
-
-        cudaFree(d_matrix);
-        if (!validate_hermetianTranspose(matrix, matrixT, width, height)) {printf("failed: compared matices on host!\n"); return TEST_FAILED;}
-        if (!validate_hermetianTranspose(matrix, h_matrixT, width, height)) {printf("failed: compared matrices after kernel call!\n"); return TEST_FAILED;}
-
-        printf("Test passed\n");
-        return TEST_SUCCED;
-    }
-
     testCode validate_renderJet(float* idata, int x_size, int y_size)
     {
         printf("Testing renderJet() function... \n");
@@ -372,8 +259,8 @@ protected:
     	    // object->mapColors(gpu_buf->getDevPtr(), gpu_img->getDevPtr(), x_size, y_size);
 
             // Copy processed data from device to host
-            cudaMemcpy(img.GetImagePtr(), gpu_img->getDevPtr(), gpu_img->getSize(), cudaMemcpyDeviceToHost);
-            img.Save("./results/img/test.bmp");
+            cudaMemcpy(img.getImagePtr(), gpu_img->getDevPtr(), gpu_img->getSize(), cudaMemcpyDeviceToHost);
+            img.save("./results/img/test.bmp");
         }
     	else
     	{
